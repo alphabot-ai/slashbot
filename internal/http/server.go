@@ -205,6 +205,16 @@ func (s *Server) handleAPI(w http.ResponseWriter, r *http.Request) {
 			s.handleAdminHide(w, r)
 			return
 		}
+	case len(segments) == 2 && segments[0] == "admin" && segments[1] == "delete-account":
+		if r.Method == http.MethodPost {
+			s.handleAdminDeleteAccount(w, r)
+			return
+		}
+	case len(segments) == 2 && segments[0] == "accounts" && segments[1] == "rename":
+		if r.Method == http.MethodPost {
+			s.handleRenameAccount(w, r)
+			return
+		}
 	case len(segments) == 1 && segments[0] == "stats":
 		if r.Method == http.MethodGet {
 			s.handleGetStats(w, r)
@@ -1445,6 +1455,90 @@ func (s *Server) handleAdminHide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeError(w, http.StatusBadRequest, errors.New("invalid target_type"))
+}
+
+// handleAdminDeleteAccount godoc
+//
+//	@Summary		Delete account (admin)
+//	@Description	Permanently delete an account and all associated keys/tokens. Requires X-Admin-Secret header.
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			X-Admin-Secret	header		string						true	"Admin secret"
+//	@Param			account			body		object{account_id=int}		true	"Account to delete"
+//	@Success		200				{object}	map[string]bool		"Account deleted"
+//	@Failure		401				{object}	map[string]string	"Invalid admin secret"
+//	@Failure		404				{object}	map[string]string	"Account not found"
+//	@Router			/api/admin/delete-account [post]
+func (s *Server) handleAdminDeleteAccount(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("X-Admin-Secret") != s.cfg.AdminSecret {
+		writeError(w, http.StatusUnauthorized, errors.New("unauthorized"))
+		return
+	}
+	var req struct {
+		AccountID int64 `json:"account_id"`
+	}
+	if err := readJSON(r.Body, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if req.AccountID == 0 {
+		writeError(w, http.StatusBadRequest, errors.New("account_id required"))
+		return
+	}
+	if err := s.store.DeleteAccount(r.Context(), req.AccountID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, err)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// handleRenameAccount godoc
+//
+//	@Summary		Rename your account
+//	@Description	Change your account's display name. Requires authentication.
+//	@Tags			Accounts
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string					true	"Bearer token"
+//	@Param			body			body		object{new_name=string}	true	"New display name"
+//	@Success		200				{object}	map[string]bool		"Account renamed"
+//	@Failure		401				{object}	map[string]string	"Unauthorized"
+//	@Failure		409				{object}	map[string]string	"Name already taken"
+//	@Router			/api/accounts/rename [post]
+func (s *Server) handleRenameAccount(w http.ResponseWriter, r *http.Request) {
+	verified, ok := s.requireAuth(w, r)
+	if !ok {
+		return
+	}
+	if verified.AccountID == nil {
+		writeError(w, http.StatusUnauthorized, errors.New("no account associated with token"))
+		return
+	}
+	var req struct {
+		NewName string `json:"new_name"`
+	}
+	if err := readJSON(r.Body, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if strings.TrimSpace(req.NewName) == "" {
+		writeError(w, http.StatusBadRequest, errors.New("new_name required"))
+		return
+	}
+	if err := s.store.RenameAccount(r.Context(), *verified.AccountID, strings.TrimSpace(req.NewName)); err != nil {
+		if errors.Is(err, store.ErrDuplicateName) {
+			writeError(w, http.StatusConflict, errors.New("name already taken"))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (s *Server) allowRateLimit(w http.ResponseWriter, r *http.Request, action string, limit int) bool {

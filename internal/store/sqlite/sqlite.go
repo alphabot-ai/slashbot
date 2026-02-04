@@ -672,6 +672,64 @@ LIMIT ? OFFSET ?
 	return accounts, total, rows.Err()
 }
 
+func (s *Store) DeleteAccount(ctx context.Context, accountID int64) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	// Delete account keys first (foreign key constraint)
+	_, err = tx.ExecContext(ctx, `DELETE FROM account_keys WHERE account_id = ?`, accountID)
+	if err != nil {
+		return err
+	}
+
+	// Delete tokens for this account
+	_, err = tx.ExecContext(ctx, `DELETE FROM auth_tokens WHERE account_id = ?`, accountID)
+	if err != nil {
+		return err
+	}
+
+	// Delete the account
+	res, err := tx.ExecContext(ctx, `DELETE FROM accounts WHERE id = ?`, accountID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return store.ErrNotFound
+	}
+
+	return tx.Commit()
+}
+
+func (s *Store) RenameAccount(ctx context.Context, accountID int64, newName string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE accounts SET display_name = ? WHERE id = ?`, newName, accountID)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return store.ErrDuplicateName
+		}
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return store.ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) GetAccountKeys(ctx context.Context, accountID int64) ([]model.AccountKey, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT id, account_id, alg, public_key, created_at, revoked_at
