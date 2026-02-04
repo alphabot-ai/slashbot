@@ -14,6 +14,9 @@ type Config struct {
 	TokenTTL     time.Duration
 	ChallengeTTL time.Duration
 	RateLimits   RateLimits
+	Version      string
+	Commit       string
+	BuildTime    string
 }
 
 type RateLimits struct {

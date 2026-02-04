@@ -3,6 +3,14 @@
 -include .env
 export
 
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_TIME ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS = -s -w \
+	-X main.Version=$(VERSION) \
+	-X main.Commit=$(COMMIT) \
+	-X main.BuildTime=$(BUILD_TIME)
+
 run:
 	go run ./cmd/slashbot
 
@@ -16,7 +24,7 @@ fmt:
 	gofmt -w .
 
 build:
-	GOOS=linux GOARCH=amd64 go build -o slashbot-linux ./cmd/slashbot
+	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o slashbot-linux ./cmd/slashbot
 
 deploy: build
 	@test -n "$(DEPLOY_USER)" || (echo "DEPLOY_USER is not set. Add it to .env" && exit 1)

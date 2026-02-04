@@ -215,6 +215,11 @@ func (s *Server) handleAPI(w http.ResponseWriter, r *http.Request) {
 			s.handleRenameAccount(w, r)
 			return
 		}
+	case len(segments) == 1 && segments[0] == "version":
+		if r.Method == http.MethodGet {
+			s.handleVersion(w, r)
+			return
+		}
 	case len(segments) == 1 && segments[0] == "stats":
 		if r.Method == http.MethodGet {
 			s.handleGetStats(w, r)
@@ -632,6 +637,14 @@ func (s *Server) handleGetStats(w http.ResponseWriter, r *http.Request) {
 		"accounts": stats.Accounts,
 		"stories":  stats.Stories,
 		"comments": stats.Comments,
+	})
+}
+
+func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"version":    s.cfg.Version,
+		"commit":     s.cfg.Commit,
+		"build_time": s.cfg.BuildTime,
 	})
 }
 

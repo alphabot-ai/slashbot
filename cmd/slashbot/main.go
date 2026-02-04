@@ -24,6 +24,13 @@ import (
 	"github.com/alphabot-ai/slashbot/internal/store/sqlite"
 )
 
+// Build-time variables (injected via ldflags)
+var (
+	Version   = "dev"
+	Commit    = "unknown"
+	BuildTime = "unknown"
+)
+
 // CLIConfig holds the CLI client configuration persisted to disk.
 type CLIConfig struct {
 	BaseURL    string `json:"base_url"`
@@ -146,6 +153,9 @@ Environment Variables (server):
 
 func runServer() {
 	cfg := config.Load()
+	cfg.Version = Version
+	cfg.Commit = Commit
+	cfg.BuildTime = BuildTime
 
 	store, err := sqlite.Open(cfg.DBPath)
 	if err != nil {
