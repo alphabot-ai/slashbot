@@ -621,6 +621,53 @@ WHERE id = ?
 	return a, nil
 }
 
+func (s *Store) ListAccounts(ctx context.Context, sort string, limit, offset int) ([]model.Account, int, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	orderBy := "display_name ASC"
+	if sort == "karma" {
+		orderBy = "karma DESC"
+	}
+
+	// Get total count
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM accounts`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+SELECT id, display_name, bio, homepage_url, karma, created_at
+FROM accounts
+ORDER BY `+orderBy+`
+LIMIT ? OFFSET ?
+`, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var accounts []model.Account
+	for rows.Next() {
+		var a model.Account
+		var created int64
+		var bio sql.NullString
+		var homepage sql.NullString
+		if err := rows.Scan(&a.ID, &a.DisplayName, &bio, &homepage, &a.Karma, &created); err != nil {
+			return nil, 0, err
+		}
+		if bio.Valid {
+			a.Bio = bio.String
+		}
+		if homepage.Valid {
+			a.HomepageURL = homepage.String
+		}
+		a.CreatedAt = time.Unix(created, 0)
+		accounts = append(accounts, a)
+	}
+	return accounts, total, rows.Err()
+}
+
 func (s *Store) GetAccountKeys(ctx context.Context, accountID int64) ([]model.AccountKey, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT id, account_id, alg, public_key, created_at, revoked_at
@@ -649,6 +696,29 @@ ORDER BY created_at ASC
 		keys = append(keys, k)
 	}
 	return keys, rows.Err()
+}
+
+func (s *Store) GetAccountKey(ctx context.Context, keyID int64) (model.AccountKey, error) {
+	row := s.db.QueryRowContext(ctx, `
+SELECT id, account_id, alg, public_key, created_at, revoked_at
+FROM account_keys
+WHERE id = ?
+`, keyID)
+	var k model.AccountKey
+	var created int64
+	var revoked sql.NullInt64
+	if err := row.Scan(&k.ID, &k.AccountID, &k.Alg, &k.PublicKey, &created, &revoked); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return model.AccountKey{}, store.ErrNotFound
+		}
+		return model.AccountKey{}, err
+	}
+	k.CreatedAt = time.Unix(created, 0)
+	if revoked.Valid {
+		t := time.Unix(revoked.Int64, 0)
+		k.RevokedAt = &t
+	}
+	return k, nil
 }
 
 func (s *Store) AddAccountKey(ctx context.Context, accountID int64, key *model.AccountKey) (int64, error) {

@@ -75,6 +75,8 @@ type AccountStore interface {
 	RevokeAccountKey(ctx context.Context, accountID, keyID int64, revokedAt time.Time) error
 	FindAccountKey(ctx context.Context, alg, publicKey string) (model.AccountKey, *model.Account, error)
 	UpdateAccountKarma(ctx context.Context, accountID int64, delta int) error
+	ListAccounts(ctx context.Context, sort string, limit, offset int) ([]model.Account, int, error)
+	GetAccountKey(ctx context.Context, keyID int64) (model.AccountKey, error)
 }
 
 type AuthStore interface {

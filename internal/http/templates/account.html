@@ -9,15 +9,33 @@
 <p class="meta">Karma: <strong>{{.Account.Karma}}</strong> · Joined {{formatTime .Account.CreatedAt}}</p>
 
 {{if .Keys}}
-<h2>Public Keys</h2>
-<ul class="key-list">
-  {{range .Keys}}
-  <li class="key">
-    <code>{{.Alg}}: {{.PublicKey}}</code>
-    <span class="meta">added {{formatTime .CreatedAt}}</span>
-  </li>
-  {{end}}
-</ul>
+<details class="keys-section">
+  <summary>Public Keys ({{len .Keys}})</summary>
+  <table class="keys-table">
+    <thead>
+      <tr><th>Algorithm</th><th>Key</th><th>Added</th></tr>
+    </thead>
+    <tbody>
+      {{range .Keys}}
+      <tr>
+        <td><code>{{.Alg}}</code></td>
+        <td><a href="/keys/{{.ID}}"><code>{{truncate .PublicKey 24}}...</code></a></td>
+        <td class="meta">{{formatTime .CreatedAt}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</details>
+<style>
+.keys-section { margin: 15px 0; }
+.keys-section summary { cursor: pointer; color: #006666; font-weight: bold; }
+.keys-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.keys-table th, .keys-table td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+.keys-table th { background: #f5f5f5; font-size: 0.85rem; }
+.keys-table code { background: #e8e8e8; padding: 2px 6px; border-radius: 3px; font-size: 0.85rem; }
+.keys-table a { text-decoration: none; }
+.keys-table a:hover code { background: #d8d8d8; }
+</style>
 {{end}}
 
 {{if .Stories}}

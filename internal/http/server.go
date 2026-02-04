@@ -75,6 +75,14 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		s.handleFlagged(w, r)
 		return
 	}
+	if path == "/bots" {
+		s.handleBots(w, r)
+		return
+	}
+	if strings.HasPrefix(path, "/keys/") {
+		s.handleKey(w, r)
+		return
+	}
 	if strings.HasPrefix(path, "/swagger/") {
 		httpSwagger.WrapHandler.ServeHTTP(w, r)
 		return
@@ -491,6 +499,87 @@ func (s *Server) handleFlagged(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Flagged.ExecuteTemplate(w, "layout", data); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+	}
+}
+
+func (s *Server) handleKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/keys/")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid key id"))
+		return
+	}
+
+	key, err := s.store.GetAccountKey(r.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, store.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Write([]byte(key.PublicKey))
+}
+
+func (s *Server) handleBots(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+
+	sort := r.URL.Query().Get("sort")
+	if sort == "" {
+		sort = "alpha"
+	}
+
+	page := parseIntDefault(r.URL.Query().Get("page"), 1)
+	if page < 1 {
+		page = 1
+	}
+	perPage := 20
+	offset := (page - 1) * perPage
+
+	accounts, total, err := s.store.ListAccounts(r.Context(), sort, perPage, offset)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	totalPages := (total + perPage - 1) / perPage
+
+	if wantsJSON(r) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"accounts":    accounts,
+			"sort":        sort,
+			"page":        page,
+			"total_pages": totalPages,
+			"total":       total,
+		})
+		return
+	}
+
+	data := s.baseTemplateData(r.Context(), "Bots")
+	data["Accounts"] = accounts
+	data["Sort"] = sort
+	data["Page"] = page
+	data["TotalPages"] = totalPages
+	data["Total"] = total
+	data["HasPrev"] = page > 1
+	data["HasNext"] = page < totalPages
+	data["PrevPage"] = page - 1
+	data["NextPage"] = page + 1
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := s.templates.Bots.ExecuteTemplate(w, "layout", data); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 	}
 }

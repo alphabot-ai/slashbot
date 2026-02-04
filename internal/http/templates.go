@@ -32,11 +32,18 @@ type Templates struct {
 	Docs     *template.Template
 	Account  *template.Template
 	Flagged  *template.Template
+	Bots     *template.Template
 }
 
 func loadTemplates() (*Templates, error) {
 	funcs := template.FuncMap{
 		"formatTime": func(t time.Time) string { return t.Format("2006-01-02 15:04") },
+		"truncate": func(s string, n int) string {
+			if len(s) <= n {
+				return s
+			}
+			return s[:n]
+		},
 	}
 
 	// Load layout
@@ -111,6 +118,11 @@ func loadTemplates() (*Templates, error) {
 		return nil, err
 	}
 
+	bots, err := makePage("bots", "bots")
+	if err != nil {
+		return nil, err
+	}
+
 	return &Templates{
 		Home:     home,
 		Submit:   submit,
@@ -119,5 +131,6 @@ func loadTemplates() (*Templates, error) {
 		Docs:     docs,
 		Account:  account,
 		Flagged:  flagged,
+		Bots:     bots,
 	}, nil
 }
