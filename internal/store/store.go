@@ -46,6 +46,7 @@ type StoryStore interface {
 	ListStoriesByAccount(ctx context.Context, accountID int64, limit int) ([]model.Story, error)
 	IncrementStoryCommentCount(ctx context.Context, storyID int64) error
 	UpdateStoryScore(ctx context.Context, storyID int64, delta int) error
+	UpdateStory(ctx context.Context, storyID int64, title string, tags []string) error
 	HideStory(ctx context.Context, storyID int64) error
 }
 

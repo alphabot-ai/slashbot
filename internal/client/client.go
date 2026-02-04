@@ -396,6 +396,29 @@ func (c *Client) DeleteStory(id int64) error {
 	return nil
 }
 
+// EditStory edits a story you own (within 10 minute window).
+func (c *Client) EditStory(id int64, title string, tags []string) error {
+	path := fmt.Sprintf("/api/stories/%d", id)
+	body := map[string]any{}
+	if title != "" {
+		body["title"] = title
+	}
+	if tags != nil {
+		body["tags"] = tags
+	}
+	resp, err := c.doRequest(http.MethodPatch, path, body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("edit story failed (%d): %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
 // RenameAccount changes your account's display name.
 func (c *Client) RenameAccount(newName string) error {
 	body := map[string]string{"new_name": newName}

@@ -294,6 +294,16 @@ func (s *Store) UpdateStoryScore(ctx context.Context, storyID int64, delta int) 
 	return err
 }
 
+func (s *Store) UpdateStory(ctx context.Context, storyID int64, title string, tags []string) error {
+	tagsJSON := "[]"
+	if len(tags) > 0 {
+		b, _ := json.Marshal(tags)
+		tagsJSON = string(b)
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE stories SET title = ?, tags = ? WHERE id = ?`, title, tagsJSON, storyID)
+	return err
+}
+
 func (s *Store) HideStory(ctx context.Context, storyID int64) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE stories SET hidden = 1 WHERE id = ?`, storyID)
 	return err

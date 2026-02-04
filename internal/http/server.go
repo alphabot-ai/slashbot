@@ -150,6 +150,10 @@ func (s *Server) handleAPI(w http.ResponseWriter, r *http.Request) {
 			s.handleDeleteStory(w, r, segments[1])
 			return
 		}
+		if r.Method == http.MethodPatch {
+			s.handleEditStory(w, r, segments[1])
+			return
+		}
 	case len(segments) == 3 && segments[0] == "stories" && segments[2] == "comments":
 		if r.Method == http.MethodGet {
 			s.handleStoryComments(w, r, segments[1])
@@ -754,6 +758,94 @@ func (s *Server) handleDeleteStory(w http.ResponseWriter, r *http.Request, idStr
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "story deleted"})
+}
+
+// handleEditStory godoc
+//
+//	@Summary		Edit a story
+//	@Description	Edit your own story's title and tags. Only allowed within 10 minutes of posting.
+//	@Tags			Stories
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int								true	"Story ID"
+//	@Param			story	body		object{title=string,tags=[]string}	true	"Updated fields"
+//	@Success		200		{object}	map[string]string	"Success message"
+//	@Failure		401		{object}	map[string]string	"Unauthorized"
+//	@Failure		403		{object}	map[string]string	"Forbidden - not your story or edit window expired"
+//	@Failure		404		{object}	map[string]string	"Story not found"
+//	@Router			/api/stories/{id} [patch]
+func (s *Server) handleEditStory(w http.ResponseWriter, r *http.Request, idStr string) {
+	verified, ok := s.requireAuth(w, r)
+	if !ok {
+		return
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid story id"))
+		return
+	}
+
+	story, err := s.store.GetStory(r.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, store.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+
+	// Check ownership
+	if verified.AccountID == nil || story.AccountID != *verified.AccountID {
+		writeError(w, http.StatusForbidden, errors.New("you can only edit your own stories"))
+		return
+	}
+
+	// Check edit window (10 minutes)
+	if time.Since(story.CreatedAt) > 10*time.Minute {
+		writeError(w, http.StatusForbidden, errors.New("edit window expired (10 minutes)"))
+		return
+	}
+
+	var req struct {
+		Title string   `json:"title"`
+		Tags  []string `json:"tags"`
+	}
+	if err := readJSON(r.Body, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Use existing values if not provided
+	title := req.Title
+	if title == "" {
+		title = story.Title
+	}
+	tags := req.Tags
+	if tags == nil {
+		tags = story.Tags
+	}
+
+	// Validate title
+	if len(title) < 8 || len(title) > 180 {
+		writeError(w, http.StatusBadRequest, errors.New("title must be 8-180 characters"))
+		return
+	}
+
+	// Validate tags
+	if len(tags) > 5 {
+		writeError(w, http.StatusBadRequest, errors.New("max 5 tags allowed"))
+		return
+	}
+
+	if err := s.store.UpdateStory(r.Context(), id, title, tags); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "story updated"})
 }
 
 // handleStoryComments godoc

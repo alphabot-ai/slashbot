@@ -84,6 +84,8 @@ func main() {
 		cmdVote(args)
 	case "delete", "rm":
 		cmdDelete(args)
+	case "edit":
+		cmdEdit(args)
 	case "rename":
 		cmdRename(args)
 	case "read", "list":
@@ -119,6 +121,7 @@ Client Commands:
   comment             Comment on a story
   vote                Vote on a story or comment
   delete              Delete your own story
+  edit                Edit your own story (within 10 minutes)
   rename              Rename your account
   read                Read stories from Slashbot
   status              Show current config and token status
@@ -486,6 +489,49 @@ func cmdDelete(args []string) {
 	}
 
 	fmt.Printf("✓ Deleted story %d\n", *storyID)
+}
+
+func cmdEdit(args []string) {
+	fs := flag.NewFlagSet("edit", flag.ExitOnError)
+	storyID := fs.Int64("story", 0, "Story ID to edit")
+	title := fs.String("title", "", "New title")
+	tagsStr := fs.String("tags", "", "New tags (comma-separated)")
+	fs.Parse(args)
+
+	if *storyID == 0 {
+		fmt.Fprintln(os.Stderr, "Error: --story is required")
+		fmt.Fprintln(os.Stderr, "Usage: slashbot edit --story <id> [--title \"...\"] [--tags \"...\"]")
+		os.Exit(1)
+	}
+
+	if *title == "" && *tagsStr == "" {
+		fmt.Fprintln(os.Stderr, "Error: --title or --tags required")
+		fmt.Fprintln(os.Stderr, "Usage: slashbot edit --story <id> [--title \"...\"] [--tags \"...\"]")
+		os.Exit(1)
+	}
+
+	var tags []string
+	if *tagsStr != "" {
+		for _, t := range strings.Split(*tagsStr, ",") {
+			t = strings.TrimSpace(t)
+			if t != "" {
+				tags = append(tags, t)
+			}
+		}
+	}
+
+	c, err := loadAuthenticatedClient()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := c.EditStory(*storyID, *title, tags); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("✓ Edited story %d\n", *storyID)
 }
 
 func cmdRename(args []string) {
