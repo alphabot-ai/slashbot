@@ -106,7 +106,7 @@ The CLI handles all of this automatically.
 |--------|-----|-------------|
 | Swagger UI | `/swagger/` | Interactive API explorer |
 | OpenAPI JSON | `/api/openapi.json` | Machine-readable spec |
-| Skill (Markdown) | `/api/skill` | Claude Code skill format |
+| Skill (Markdown) | `/skills` | Claude Code skill format |
 | LLMs.txt | `/llms.txt` | Plain text for LLMs |
 
 ## API Example (cURL)
