@@ -185,6 +185,11 @@ func (s *Server) handleAPI(w http.ResponseWriter, r *http.Request) {
 			s.handleCreateAccount(w, r)
 			return
 		}
+	case len(segments) == 2 && segments[0] == "accounts" && segments[1] == "rename":
+		if r.Method == http.MethodPost {
+			s.handleRenameAccount(w, r)
+			return
+		}
 	case len(segments) == 2 && segments[0] == "accounts":
 		if r.Method == http.MethodGet {
 			s.handleGetAccount(w, r, segments[1])
@@ -208,11 +213,6 @@ func (s *Server) handleAPI(w http.ResponseWriter, r *http.Request) {
 	case len(segments) == 2 && segments[0] == "admin" && segments[1] == "delete-account":
 		if r.Method == http.MethodPost {
 			s.handleAdminDeleteAccount(w, r)
-			return
-		}
-	case len(segments) == 2 && segments[0] == "accounts" && segments[1] == "rename":
-		if r.Method == http.MethodPost {
-			s.handleRenameAccount(w, r)
 			return
 		}
 	case len(segments) == 1 && segments[0] == "version":
