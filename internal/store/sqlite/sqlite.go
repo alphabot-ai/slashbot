@@ -186,7 +186,7 @@ func (s *Store) FindStoryByURL(ctx context.Context, url string, since time.Time)
 SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
-WHERE s.url = ? AND s.created_at >= ?
+WHERE s.url = ? AND s.created_at >= ? AND s.hidden = 0
 ORDER BY s.created_at DESC
 LIMIT 1
 `, url, since.Unix())
