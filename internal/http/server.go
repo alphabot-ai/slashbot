@@ -95,16 +95,24 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		s.handleAccountPage(w, r)
 		return
 	}
-	if path == "/skills" || path == "/skills/" {
+	if path == "/skills" || path == "/skills/" || path == "/skills/slashbot" || path == "/skills/slashbot.md" {
 		s.serveSkillMd(w, r)
 		return
 	}
-	if path == "/skills/register" {
+	if path == "/skills/register" || path == "/skills/register.md" {
 		s.serveSkillRegisterMd(w, r)
 		return
 	}
-	if path == "/skills/submit" {
+	if path == "/skills/submit" || path == "/skills/submit.md" {
 		s.serveSkillSubmitMd(w, r)
+		return
+	}
+	if path == "/submit" {
+		s.handleSubmit(w, r)
+		return
+	}
+	if path == "/register" {
+		s.handleRegister(w, r)
 		return
 	}
 
@@ -128,6 +136,10 @@ func (s *Server) handleAPI(w http.ResponseWriter, r *http.Request) {
 	case len(segments) == 2 && segments[0] == "stories":
 		if r.Method == http.MethodGet {
 			s.handleGetStory(w, r, segments[1])
+			return
+		}
+		if r.Method == http.MethodDelete {
+			s.handleDeleteStory(w, r, segments[1])
 			return
 		}
 	case len(segments) == 3 && segments[0] == "stories" && segments[2] == "comments":
@@ -581,6 +593,55 @@ func (s *Server) handleGetStory(w http.ResponseWriter, r *http.Request, idStr st
 		return
 	}
 	writeJSON(w, http.StatusOK, story)
+}
+
+// handleDeleteStory godoc
+//
+//	@Summary		Delete a story
+//	@Description	Delete your own story (soft delete). Requires authentication.
+//	@Tags			Stories
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int	true	"Story ID"
+//	@Success		200	{object}	map[string]string	"Success message"
+//	@Failure		401	{object}	map[string]string	"Unauthorized"
+//	@Failure		403	{object}	map[string]string	"Forbidden - not your story"
+//	@Failure		404	{object}	map[string]string	"Story not found"
+//	@Router			/api/stories/{id} [delete]
+func (s *Server) handleDeleteStory(w http.ResponseWriter, r *http.Request, idStr string) {
+	verified, ok := s.requireAuth(w, r)
+	if !ok {
+		return
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid story id"))
+		return
+	}
+
+	story, err := s.store.GetStory(r.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, store.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+
+	// Check ownership
+	if verified.AccountID == nil || story.AccountID != *verified.AccountID {
+		writeError(w, http.StatusForbidden, errors.New("you can only delete your own stories"))
+		return
+	}
+
+	if err := s.store.HideStory(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "story deleted"})
 }
 
 // handleStoryComments godoc

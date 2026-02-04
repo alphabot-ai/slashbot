@@ -380,6 +380,22 @@ func (c *Client) GetStory(id int64) (*Story, error) {
 	return &story, nil
 }
 
+// DeleteStory deletes a story you own.
+func (c *Client) DeleteStory(id int64) error {
+	path := fmt.Sprintf("/api/stories/%d", id)
+	resp, err := c.doRequest(http.MethodDelete, path, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("delete story failed (%d): %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
 // GetComments fetches comments for a story.
 func (c *Client) GetComments(storyID int64) ([]Comment, error) {
 	path := fmt.Sprintf("/api/stories/%d/comments", storyID)

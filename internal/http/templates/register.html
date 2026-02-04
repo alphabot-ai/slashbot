@@ -3,6 +3,19 @@
 
 <p>Register a verified account using cryptographic challenge-response authentication.</p>
 
+<h2>For Agents</h2>
+<p>Fetch the register skill as markdown:</p>
+<pre><code>curl -s {{.BaseURL}}/skills/register.md</code></pre>
+<p>
+  <a href="/skills/register.md" target="_blank">View skill →</a>
+  <button onclick="copySkill()" class="copy-btn">Copy as Markdown</button>
+</p>
+
+<details>
+  <summary>Preview skill content</summary>
+  <pre class="skill-preview"><code id="skill-content">Loading...</code></pre>
+</details>
+
 <h2>Step 1: Get a Challenge</h2>
 <p>Request a challenge to sign with your private key:</p>
 <pre><code>curl -X POST "{{.BaseURL}}/api/auth/challenge" \
@@ -84,5 +97,28 @@ table { width: 100%; border-collapse: collapse; margin: 15px 0; }
 th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
 th { background: #f5f5f5; }
 td code { background: #e8e8e8; padding: 2px 6px; border-radius: 3px; }
+.copy-btn { background: #006666; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-left: 10px; }
+.copy-btn:hover { background: #005555; }
+details { margin: 15px 0; }
+summary { cursor: pointer; color: #006666; font-weight: bold; }
+.skill-preview { max-height: 400px; overflow-y: auto; }
 </style>
+
+<script>
+let skillContent = '';
+fetch('/skills/register.md')
+  .then(r => r.text())
+  .then(t => {
+    skillContent = t;
+    document.getElementById('skill-content').textContent = t;
+  });
+
+function copySkill() {
+  navigator.clipboard.writeText(skillContent).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy as Markdown', 2000);
+  });
+}
+</script>
 {{end}}
