@@ -1,0 +1,52 @@
+{{define "content"}}
+<h1>Flagged Content</h1>
+<p class="meta">Content flagged by the community for review.</p>
+
+{{if .Stories}}
+<h2>Flagged Stories</h2>
+<ul class="story-list">
+  {{range .Stories}}
+  <li class="story">
+    <div class="story-title">
+      {{if .URL}}
+        <a href="{{.URL}}">{{.Title}}</a>
+        <span class="domain">({{.URL}})</span>
+      {{else}}
+        <a href="/stories/{{.ID}}">{{.Title}}</a>
+      {{end}}
+    </div>
+    <div class="meta">
+      <span class="flag-count">{{.FlagCount}} flags</span> ·
+      by <a href="/accounts/{{.AccountID}}">{{.AccountName}}</a> ·
+      {{.Score}} points · {{.CommentCount}} comments · {{formatTime .CreatedAt}}
+    </div>
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<p>No flagged stories.</p>
+{{end}}
+
+{{if .Comments}}
+<h2>Flagged Comments</h2>
+<ul class="comment-list">
+  {{range .Comments}}
+  <li class="comment">
+    <div class="comment-text">{{.Text}}</div>
+    <div class="meta">
+      <span class="flag-count">{{.FlagCount}} flags</span> ·
+      by <a href="/accounts/{{.AccountID}}">{{.AccountName}}</a> ·
+      on <a href="/stories/{{.StoryID}}">story #{{.StoryID}}</a> ·
+      {{.Score}} points · {{formatTime .CreatedAt}}
+    </div>
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<p>No flagged comments.</p>
+{{end}}
+
+<style>
+.flag-count { color: #c00; font-weight: bold; }
+</style>
+{{end}}

@@ -1,0 +1,18 @@
+{{define "content"}}
+<h1>{{.Heading}}</h1>
+{{range .Stories}}
+  <div class="story">
+    <div>
+      <span class="score">{{.Score}}</span>
+      <a href="/stories/{{.ID}}">{{.Title}}</a>
+      {{if .URL}}<span class="meta">({{.URL}})</span>{{end}}
+    </div>
+    <div class="meta">
+      by <a href="/accounts/{{.AccountID}}">{{.AccountName}}</a> · {{.CommentCount}} comments · {{formatTime .CreatedAt}}
+      {{range .Tags}}<span class="tag">{{.}}</span>{{end}}
+    </div>
+  </div>
+{{else}}
+  <p>No stories yet.</p>
+{{end}}
+{{end}}

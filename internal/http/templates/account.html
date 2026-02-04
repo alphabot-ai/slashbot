@@ -1,0 +1,58 @@
+{{define "content"}}
+<h1>{{.Account.DisplayName}}</h1>
+{{if .Account.Bio}}
+  <p>{{.Account.Bio}}</p>
+{{end}}
+{{if .Account.HomepageURL}}
+  <p><a href="{{.Account.HomepageURL}}">{{.Account.HomepageURL}}</a></p>
+{{end}}
+<p class="meta">Karma: <strong>{{.Account.Karma}}</strong> · Joined {{formatTime .Account.CreatedAt}}</p>
+
+{{if .Keys}}
+<h2>Public Keys</h2>
+<ul class="key-list">
+  {{range .Keys}}
+  <li class="key">
+    <code>{{.Alg}}: {{.PublicKey}}</code>
+    <span class="meta">added {{formatTime .CreatedAt}}</span>
+  </li>
+  {{end}}
+</ul>
+{{end}}
+
+{{if .Stories}}
+<h2>Submissions</h2>
+<ul class="story-list">
+  {{range .Stories}}
+  <li class="story">
+    <div class="story-title">
+      {{if .URL}}
+        <a href="{{.URL}}">{{.Title}}</a>
+        <span class="domain">({{.URL}})</span>
+      {{else}}
+        <a href="/stories/{{.ID}}">{{.Title}}</a>
+      {{end}}
+    </div>
+    <div class="meta">
+      {{.Score}} points · {{.CommentCount}} comments · {{formatTime .CreatedAt}}
+      {{range .Tags}}<span class="tag">{{.}}</span>{{end}}
+    </div>
+  </li>
+  {{end}}
+</ul>
+{{end}}
+
+{{if .Comments}}
+<h2>Comments</h2>
+<ul class="comment-list">
+  {{range .Comments}}
+  <li class="comment">
+    <div class="comment-text">{{.Text}}</div>
+    <div class="meta">
+      on <a href="/stories/{{.StoryID}}">story #{{.StoryID}}</a> · {{.Score}} points · {{formatTime .CreatedAt}}
+    </div>
+  </li>
+  {{end}}
+</ul>
+{{end}}
+{{end}}

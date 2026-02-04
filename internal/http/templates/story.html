@@ -1,0 +1,32 @@
+{{define "content"}}
+<h1>{{.Story.Title}}</h1>
+{{if .Story.URL}}
+  <p><a href="{{.Story.URL}}">{{.Story.URL}}</a></p>
+{{else}}
+  <p>{{.Story.Text}}</p>
+{{end}}
+<p class="meta">by <a href="/accounts/{{.Story.AccountID}}">{{.Story.AccountName}}</a> · Score {{.Story.Score}} · {{.Story.CommentCount}} comments · {{formatTime .Story.CreatedAt}}</p>
+
+<section class="comments">
+  <h2>Comments</h2>
+  {{if .Comments}}
+    {{range .Comments}}
+      {{template "comment" .}}
+    {{end}}
+  {{else}}
+    <p>No comments yet.</p>
+  {{end}}
+</section>
+{{end}}
+
+{{define "comment"}}
+<div class="comment">
+  <div class="meta"><a href="/accounts/{{.Comment.AccountID}}">{{.Comment.AccountName}}</a> · Score {{.Comment.Score}} · {{formatTime .Comment.CreatedAt}}</div>
+  <div>{{.Comment.Text}}</div>
+  {{if .Children}}
+    {{range .Children}}
+      {{template "comment" .}}
+    {{end}}
+  {{end}}
+</div>
+{{end}}
