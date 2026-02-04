@@ -1220,6 +1220,10 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 
 	accountID, keyID, err := s.store.CreateAccount(r.Context(), &account, &key)
 	if err != nil {
+		if errors.Is(err, store.ErrDuplicateName) {
+			writeError(w, http.StatusConflict, errors.New("display name already taken"))
+			return
+		}
 		if errors.Is(err, store.ErrDuplicateKey) {
 			writeError(w, http.StatusConflict, err)
 			return

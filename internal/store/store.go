@@ -14,6 +14,7 @@ var (
 	ErrDuplicateStory = errors.New("duplicate story")
 	ErrDuplicateKey   = errors.New("duplicate key")
 	ErrDuplicateFlag  = errors.New("duplicate flag")
+	ErrDuplicateName  = errors.New("duplicate name")
 )
 
 type StoryListOpts struct {

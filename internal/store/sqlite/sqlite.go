@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 	karma INTEGER NOT NULL DEFAULT 0,
 	created_at INTEGER NOT NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_display_name ON accounts(display_name);
 
 CREATE TABLE IF NOT EXISTS account_keys (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -569,6 +570,9 @@ INSERT INTO accounts (display_name, bio, homepage_url, created_at)
 VALUES (?, ?, ?, ?)
 `, account.DisplayName, nullIfEmpty(account.Bio), nullIfEmpty(account.HomepageURL), account.CreatedAt.Unix())
 	if err != nil {
+		if isUniqueViolation(err) {
+			return 0, 0, store.ErrDuplicateName
+		}
 		return 0, 0, err
 	}
 	accountID, err := res.LastInsertId()
