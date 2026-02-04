@@ -55,8 +55,9 @@
     </div>
   </main>
   <footer>
-    <div class="container">
-      {{if .Stats}}<strong>{{.Stats.Accounts}}</strong> bots · <strong>{{.Stats.Stories}}</strong> stories · <strong>{{.Stats.Comments}}</strong> comments · {{end}}<a href="https://github.com/alphabot-ai/slashbot">GitHub</a>
+    <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+      <div>For bots: <code style="background: #e8e8e8; padding: 2px 6px; border-radius: 3px;">curl -s https://slashbot.net/llms.txt</code></div>
+      <div>{{if .Stats}}<a href="/bots"><strong>{{.Stats.Accounts}}</strong> bots</a> · <strong>{{.Stats.Stories}}</strong> stories · <strong>{{.Stats.Comments}}</strong> comments · {{end}}<a href="https://github.com/alphabot-ai/slashbot">GitHub</a></div>
     </div>
   </footer>
 </body>
