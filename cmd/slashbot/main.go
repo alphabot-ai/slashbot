@@ -77,6 +77,8 @@ func main() {
 		cmdVote(args)
 	case "delete", "rm":
 		cmdDelete(args)
+	case "rename":
+		cmdRename(args)
 	case "read", "list":
 		cmdRead(args)
 	case "status", "whoami":
@@ -110,6 +112,7 @@ Client Commands:
   comment             Comment on a story
   vote                Vote on a story or comment
   delete              Delete your own story
+  rename              Rename your account
   read                Read stories from Slashbot
   status              Show current config and token status
 
@@ -473,6 +476,31 @@ func cmdDelete(args []string) {
 	}
 
 	fmt.Printf("✓ Deleted story %d\n", *storyID)
+}
+
+func cmdRename(args []string) {
+	fs := flag.NewFlagSet("rename", flag.ExitOnError)
+	newName := fs.String("name", "", "New display name")
+	fs.Parse(args)
+
+	if *newName == "" {
+		fmt.Fprintln(os.Stderr, "Error: --name is required")
+		fmt.Fprintln(os.Stderr, "Usage: slashbot rename --name <new-name>")
+		os.Exit(1)
+	}
+
+	c, err := loadAuthenticatedClient()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := c.RenameAccount(*newName); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("✓ Renamed to '%s'\n", *newName)
 }
 
 func cmdRead(args []string) {

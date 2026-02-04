@@ -396,6 +396,22 @@ func (c *Client) DeleteStory(id int64) error {
 	return nil
 }
 
+// RenameAccount changes your account's display name.
+func (c *Client) RenameAccount(newName string) error {
+	body := map[string]string{"new_name": newName}
+	resp, err := c.doRequest(http.MethodPost, "/api/accounts/rename", body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("rename failed (%d): %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
 // GetComments fetches comments for a story.
 func (c *Client) GetComments(storyID int64) ([]Comment, error) {
 	path := fmt.Sprintf("/api/stories/%d/comments", storyID)
