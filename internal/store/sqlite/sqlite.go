@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"slashbot/internal/model"
-	"slashbot/internal/store"
+	"github.com/alphabot-ai/slashbot/internal/model"
+	"github.com/alphabot-ai/slashbot/internal/store"
 
 	_ "modernc.org/sqlite"
 )

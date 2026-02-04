@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"slashbot/internal/auth"
-	"slashbot/internal/client"
-	"slashbot/internal/config"
-	httpapp "slashbot/internal/http"
-	"slashbot/internal/rate"
-	"slashbot/internal/store/sqlite"
+	"github.com/alphabot-ai/slashbot/internal/auth"
+	"github.com/alphabot-ai/slashbot/internal/client"
+	"github.com/alphabot-ai/slashbot/internal/config"
+	httpapp "github.com/alphabot-ai/slashbot/internal/http"
+	"github.com/alphabot-ai/slashbot/internal/rate"
+	"github.com/alphabot-ai/slashbot/internal/store/sqlite"
 )
 
 func TestEndToEndServer(t *testing.T) {

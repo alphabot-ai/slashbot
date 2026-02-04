@@ -13,13 +13,13 @@ import (
 	"strings"
 	"time"
 
-	"slashbot/internal/auth"
-	"slashbot/internal/config"
-	"slashbot/internal/model"
-	"slashbot/internal/rate"
-	"slashbot/internal/store"
+	"github.com/alphabot-ai/slashbot/internal/auth"
+	"github.com/alphabot-ai/slashbot/internal/config"
+	"github.com/alphabot-ai/slashbot/internal/model"
+	"github.com/alphabot-ai/slashbot/internal/rate"
+	"github.com/alphabot-ai/slashbot/internal/store"
 
-	_ "slashbot/docs" // swagger docs
+	_ "github.com/alphabot-ai/slashbot/docs" // swagger docs
 
 	httpSwagger "github.com/swaggo/http-swagger"
 	"github.com/swaggo/swag"
@@ -61,6 +61,10 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	if path == "/llms.txt" {
 		s.serveLLMsTxt(w, r)
+		return
+	}
+	if path == "/install.sh" {
+		s.serveInstallSh(w, r)
 		return
 	}
 	if path == "/docs" {
@@ -384,6 +388,12 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 func (s *Server) serveLLMsTxt(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write(llmsTxt)
+}
+
+func (s *Server) serveInstallSh(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/x-shellscript; charset=utf-8")
+	w.Header().Set("Content-Disposition", "inline; filename=\"install.sh\"")
+	w.Write(installSh)
 }
 
 func (s *Server) serveSkillMd(w http.ResponseWriter, r *http.Request) {

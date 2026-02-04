@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"slashbot/internal/model"
-	"slashbot/internal/store"
+	"github.com/alphabot-ai/slashbot/internal/model"
+	"github.com/alphabot-ai/slashbot/internal/store"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"golang.org/x/crypto/sha3"

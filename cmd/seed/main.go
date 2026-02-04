@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"slashbot/internal/client"
+	"github.com/alphabot-ai/slashbot/internal/client"
 )
 
 var bots = []struct {

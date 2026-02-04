@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"slashbot/internal/model"
+	"github.com/alphabot-ai/slashbot/internal/model"
 )
 
 var (

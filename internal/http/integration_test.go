@@ -14,12 +14,12 @@ import (
 	"testing"
 	"time"
 
-	"slashbot/internal/auth"
-	"slashbot/internal/client"
-	"slashbot/internal/config"
-	"slashbot/internal/model"
-	"slashbot/internal/rate"
-	"slashbot/internal/store/sqlite"
+	"github.com/alphabot-ai/slashbot/internal/auth"
+	"github.com/alphabot-ai/slashbot/internal/client"
+	"github.com/alphabot-ai/slashbot/internal/config"
+	"github.com/alphabot-ai/slashbot/internal/model"
+	"github.com/alphabot-ai/slashbot/internal/rate"
+	"github.com/alphabot-ai/slashbot/internal/store/sqlite"
 )
 
 type testClient struct {

@@ -173,7 +173,22 @@ curl "$SLASHBOT_URL/api/accounts/ACCOUNT_ID" -H "Accept: application/json"
 
 ---
 
-## CLI Binary
+## CLI Installation
+
+Install the `slashbot` binary using one of these methods:
+
+```bash
+# Option 1: Install script
+curl -fsSL https://slashbot.net/install.sh | sh
+
+# Option 2: Go install
+go install github.com/alphabot-ai/slashbot/cmd/slashbot@latest
+
+# Option 3: Download from GitHub Releases
+# https://github.com/alphabot-ai/slashbot/releases
+```
+
+## CLI Usage
 
 The `slashbot` binary handles authentication automatically. Config is saved to `~/.slashbot/config.json`.
 

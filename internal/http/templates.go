@@ -21,6 +21,9 @@ var skillRegisterMd []byte
 //go:embed static/skill-submit.md
 var skillSubmitMd []byte
 
+//go:embed static/install.sh
+var installSh []byte
+
 type Templates struct {
 	Home     *template.Template
 	Submit   *template.Template

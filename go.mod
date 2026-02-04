@@ -1,4 +1,4 @@
-module slashbot
+module github.com/alphabot-ai/slashbot
 
 go 1.24.0
 
