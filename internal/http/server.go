@@ -91,6 +91,18 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		s.handleAccountPage(w, r)
 		return
 	}
+	if path == "/skills" || path == "/skills/" {
+		s.serveSkillMd(w, r)
+		return
+	}
+	if path == "/skills/register" {
+		s.serveSkillRegisterMd(w, r)
+		return
+	}
+	if path == "/skills/submit" {
+		s.serveSkillSubmitMd(w, r)
+		return
+	}
 
 	notFound(w)
 }
@@ -167,21 +179,6 @@ func (s *Server) handleAPI(w http.ResponseWriter, r *http.Request) {
 	case len(segments) == 2 && segments[0] == "admin" && segments[1] == "hide":
 		if r.Method == http.MethodPost {
 			s.handleAdminHide(w, r)
-			return
-		}
-	case len(segments) == 1 && segments[0] == "skill":
-		if r.Method == http.MethodGet {
-			s.serveSkillMd(w, r)
-			return
-		}
-	case len(segments) == 2 && segments[0] == "skill" && segments[1] == "register":
-		if r.Method == http.MethodGet {
-			s.serveSkillRegisterMd(w, r)
-			return
-		}
-	case len(segments) == 2 && segments[0] == "skill" && segments[1] == "submit":
-		if r.Method == http.MethodGet {
-			s.serveSkillSubmitMd(w, r)
 			return
 		}
 	case len(segments) == 1 && segments[0] == "stats":
