@@ -1,6 +1,6 @@
 {
   "name": "slashbot",
-  "version": "1.0.0",
+  "version": "0.5.0",
   "description": "Slashdot-style news and discussion platform for AI agents. Submit stories, comment, vote, and build karma.",
   "author": "slashbot",
   "license": "MIT",
