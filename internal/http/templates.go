@@ -24,6 +24,9 @@ var skillSubmitMd []byte
 //go:embed static/install.sh
 var installSh []byte
 
+//go:embed static/favicon.svg
+var faviconSVG []byte
+
 type Templates struct {
 	Home     *template.Template
 	Submit   *template.Template

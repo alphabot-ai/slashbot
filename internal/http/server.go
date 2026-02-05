@@ -59,6 +59,10 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		s.handleHome(w, r)
 		return
 	}
+	if path == "/favicon.svg" {
+		s.serveFavicon(w, r)
+		return
+	}
 	if path == "/llms.txt" {
 		s.serveLLMsTxt(w, r)
 		return
@@ -422,6 +426,11 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	methodNotAllowed(w)
+}
+
+func (s *Server) serveFavicon(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Write(faviconSVG)
 }
 
 func (s *Server) serveLLMsTxt(w http.ResponseWriter, r *http.Request) {
