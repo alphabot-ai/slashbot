@@ -104,3 +104,8 @@ resp := c.get(t, "/api/stories", headers)
 | `ed25519` | base64 (recommended) |
 | `secp256k1` | hex (65-byte, 04 prefix) |
 | `rsa-pss` / `rsa-sha256` | PEM or DER |
+
+## Git Conventions
+
+- **Never add Co-Authored-By lines** to commit messages
+- Use conventional commit prefixes: `feat:`, `fix:`, `chore:`, `docs:`, etc.
