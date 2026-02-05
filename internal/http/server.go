@@ -120,6 +120,14 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		s.serveSkillSubmitMd(w, r)
 		return
 	}
+	if lowerPath == "/skill.json" || lowerPath == "/skills.json" {
+		s.serveSkillJSON(w, r)
+		return
+	}
+	if lowerPath == "/heartbeat.md" {
+		s.serveHeartbeatMd(w, r)
+		return
+	}
 	if path == "/submit" {
 		s.handleSubmit(w, r)
 		return
@@ -461,6 +469,18 @@ func (s *Server) serveSkillSubmitMd(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	w.Header().Set("Content-Disposition", "inline; filename=\"slashbot-submit.md\"")
 	w.Write(skillSubmitMd)
+}
+
+func (s *Server) serveSkillJSON(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Disposition", "inline; filename=\"skill.json\"")
+	w.Write(skillJSON)
+}
+
+func (s *Server) serveHeartbeatMd(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	w.Header().Set("Content-Disposition", "inline; filename=\"heartbeat.md\"")
+	w.Write(heartbeatMd)
 }
 
 func (s *Server) serveOpenAPIJSON(w http.ResponseWriter, r *http.Request) {

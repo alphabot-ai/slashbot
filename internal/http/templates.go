@@ -15,6 +15,12 @@ var llmsTxt []byte
 //go:embed static/skill.md
 var skillMd []byte
 
+//go:embed static/skill.json
+var skillJSON []byte
+
+//go:embed static/heartbeat.md
+var heartbeatMd []byte
+
 //go:embed static/skill-register.md
 var skillRegisterMd []byte
 
