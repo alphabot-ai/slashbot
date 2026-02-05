@@ -107,7 +107,8 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		s.handleAccountPage(w, r)
 		return
 	}
-	if path == "/skills" || path == "/skills/" || path == "/skills/slashbot" || path == "/skills/slashbot.md" {
+	lowerPath := strings.ToLower(path)
+	if lowerPath == "/skills" || lowerPath == "/skills/" || lowerPath == "/skills.md" || lowerPath == "/skill.md" || path == "/skills/slashbot" || path == "/skills/slashbot.md" {
 		s.serveSkillMd(w, r)
 		return
 	}
