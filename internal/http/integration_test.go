@@ -522,8 +522,8 @@ func TestDuplicateVoteAndScore(t *testing.T) {
 	}
 	var updated model.Story
 	decodeJSON(t, resp, &updated)
-	if updated.Score != 1 {
-		t.Fatalf("expected score 1, got %d", updated.Score)
+	if updated.Score != 2 {
+		t.Fatalf("expected score 2, got %d", updated.Score)
 	}
 }
 

@@ -980,7 +980,7 @@ func (s *Server) createStoryFromInput(ctx context.Context, accountID int64, titl
 		URL:          urlStr,
 		Text:         text,
 		Tags:         tags,
-		Score:        0,
+		Score:        1,
 		CommentCount: 0,
 		CreatedAt:    time.Now(),
 		AccountID:    accountID,
@@ -998,6 +998,7 @@ func (s *Server) createStoryFromInput(ctx context.Context, accountID int64, titl
 		return model.Story{}, err
 	}
 	story.ID = id
+	_ = s.store.UpdateAccountKarma(ctx, accountID, 1)
 	return story, nil
 }
 
@@ -1045,7 +1046,7 @@ func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {
 		StoryID:   req.StoryID,
 		ParentID:  req.ParentID,
 		Text:      strings.TrimSpace(req.Text),
-		Score:     0,
+		Score:     1,
 		CreatedAt: time.Now(),
 		AccountID: *verified.AccountID,
 	}
@@ -1055,6 +1056,7 @@ func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	comment.ID = id
+	_ = s.store.UpdateAccountKarma(r.Context(), *verified.AccountID, 1)
 	_ = s.store.IncrementStoryCommentCount(r.Context(), req.StoryID)
 
 	writeJSON(w, http.StatusOK, comment)
