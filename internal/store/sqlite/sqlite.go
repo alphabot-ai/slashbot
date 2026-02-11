@@ -413,9 +413,10 @@ func (s *Store) ListCommentsByAccount(ctx context.Context, accountID int64, limi
 		limit = 20
 	}
 	rows, err := s.db.QueryContext(ctx, `
-SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name, a.karma
+SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name, a.karma, s.title
 FROM comments c
 LEFT JOIN accounts a ON a.id = c.account_id
+LEFT JOIN stories s ON s.id = c.story_id
 WHERE c.account_id = ? AND c.hidden = 0
 ORDER BY c.created_at DESC
 LIMIT ?
@@ -433,7 +434,8 @@ LIMIT ?
 		var hidden int
 		var accountName sql.NullString
 		var accountKarma sql.NullInt64
-		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName, &accountKarma); err != nil {
+		var storyTitle sql.NullString
+		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName, &accountKarma, &storyTitle); err != nil {
 			return nil, err
 		}
 		if parentID.Valid {
@@ -444,6 +446,9 @@ LIMIT ?
 			c.AccountName = accountName.String
 		}
 		c.AccountKarma = int(accountKarma.Int64)
+		if storyTitle.Valid {
+			c.StoryTitle = storyTitle.String
+		}
 		c.CreatedAt = time.Unix(created, 0)
 		c.Hidden = hidden == 1
 		comments = append(comments, c)

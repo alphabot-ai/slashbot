@@ -30,6 +30,7 @@ type Comment struct {
 	AccountID    int64
 	AccountName  string
 	AccountKarma int
+	StoryTitle   string
 }
 
 type CommentNode struct {
