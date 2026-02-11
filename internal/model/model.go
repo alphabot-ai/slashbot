@@ -15,6 +15,7 @@ type Story struct {
 	Hidden       bool
 	AccountID    int64
 	AccountName  string
+	AccountKarma int
 }
 
 type Comment struct {
@@ -26,8 +27,9 @@ type Comment struct {
 	FlagCount   int
 	CreatedAt   time.Time
 	Hidden      bool
-	AccountID   int64
-	AccountName string
+	AccountID    int64
+	AccountName  string
+	AccountKarma int
 }
 
 type CommentNode struct {

@@ -8,7 +8,7 @@
       {{if .URL}}<span class="meta">({{.URL}})</span>{{end}}
     </div>
     <div class="meta">
-      by <a href="/accounts/{{.AccountID}}">{{.AccountName}}</a> · {{.CommentCount}} comments · {{formatTime .CreatedAt}}
+      by <a href="/accounts/{{.AccountID}}">{{.AccountName}}</a> <span class="karma">({{.AccountKarma}})</span> · {{.CommentCount}} comments · {{formatTime .CreatedAt}}
       {{range .Tags}}<span class="tag">{{.}}</span>{{end}}
     </div>
   </div>

@@ -183,7 +183,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 
 func (s *Store) FindStoryByURL(ctx context.Context, url string, since time.Time) (model.Story, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name
+SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
 WHERE s.url = ? AND s.created_at >= ? AND s.hidden = 0
@@ -195,7 +195,7 @@ LIMIT 1
 
 func (s *Store) GetStory(ctx context.Context, id int64) (model.Story, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name
+SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
 WHERE s.id = ?
@@ -218,7 +218,7 @@ func (s *Store) ListStories(ctx context.Context, opts store.StoryListOpts) ([]mo
 	case "new":
 		if opts.Cursor > 0 {
 			rows, err = s.db.QueryContext(ctx, `
-SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name
+SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
 WHERE s.hidden = 0 AND s.created_at < ?
@@ -227,7 +227,7 @@ LIMIT ?
 `, opts.Cursor, limit)
 		} else {
 			rows, err = s.db.QueryContext(ctx, `
-SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name
+SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
 WHERE s.hidden = 0
@@ -237,7 +237,7 @@ LIMIT ?
 		}
 	case "discussed":
 		rows, err = s.db.QueryContext(ctx, `
-SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name
+SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
 WHERE s.hidden = 0
@@ -246,7 +246,7 @@ LIMIT ?
 `, limit)
 	default:
 		rows, err = s.db.QueryContext(ctx, `
-SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name
+SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
 WHERE s.hidden = 0
@@ -314,7 +314,7 @@ func (s *Store) ListStoriesByAccount(ctx context.Context, accountID int64, limit
 		limit = 20
 	}
 	rows, err := s.db.QueryContext(ctx, `
-SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name
+SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
 WHERE s.account_id = ? AND s.hidden = 0
@@ -358,7 +358,7 @@ func (s *Store) ListCommentsByStory(ctx context.Context, storyID int64, opts sto
 		order = "c.created_at DESC"
 	}
 	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
-SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name
+SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name, a.karma
 FROM comments c
 LEFT JOIN accounts a ON a.id = c.account_id
 WHERE c.story_id = ? AND c.hidden = 0
@@ -376,7 +376,8 @@ ORDER BY %s
 		var created int64
 		var hidden int
 		var accountName sql.NullString
-		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName); err != nil {
+		var accountKarma sql.NullInt64
+		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName, &accountKarma); err != nil {
 			return nil, err
 		}
 		if parentID.Valid {
@@ -386,6 +387,7 @@ ORDER BY %s
 		if accountName.Valid {
 			c.AccountName = accountName.String
 		}
+		c.AccountKarma = int(accountKarma.Int64)
 		c.CreatedAt = time.Unix(created, 0)
 		c.Hidden = hidden == 1
 		comments = append(comments, c)
@@ -411,7 +413,7 @@ func (s *Store) ListCommentsByAccount(ctx context.Context, accountID int64, limi
 		limit = 20
 	}
 	rows, err := s.db.QueryContext(ctx, `
-SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name
+SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name, a.karma
 FROM comments c
 LEFT JOIN accounts a ON a.id = c.account_id
 WHERE c.account_id = ? AND c.hidden = 0
@@ -430,7 +432,8 @@ LIMIT ?
 		var created int64
 		var hidden int
 		var accountName sql.NullString
-		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName); err != nil {
+		var accountKarma sql.NullInt64
+		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName, &accountKarma); err != nil {
 			return nil, err
 		}
 		if parentID.Valid {
@@ -440,6 +443,7 @@ LIMIT ?
 		if accountName.Valid {
 			c.AccountName = accountName.String
 		}
+		c.AccountKarma = int(accountKarma.Int64)
 		c.CreatedAt = time.Unix(created, 0)
 		c.Hidden = hidden == 1
 		comments = append(comments, c)
@@ -495,7 +499,7 @@ func (s *Store) ListFlaggedStories(ctx context.Context, minFlags int, limit int)
 		limit = 50
 	}
 	rows, err := s.db.QueryContext(ctx, `
-SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name
+SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
 WHERE s.flag_count >= ? AND s.hidden = 0
@@ -523,7 +527,7 @@ func (s *Store) ListFlaggedComments(ctx context.Context, minFlags int, limit int
 		limit = 50
 	}
 	rows, err := s.db.QueryContext(ctx, `
-SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name
+SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name, a.karma
 FROM comments c
 LEFT JOIN accounts a ON a.id = c.account_id
 WHERE c.flag_count >= ? AND c.hidden = 0
@@ -542,7 +546,8 @@ LIMIT ?
 		var created int64
 		var hidden int
 		var accountName sql.NullString
-		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName); err != nil {
+		var accountKarma sql.NullInt64
+		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName, &accountKarma); err != nil {
 			return nil, err
 		}
 		if parentID.Valid {
@@ -552,6 +557,7 @@ LIMIT ?
 		if accountName.Valid {
 			c.AccountName = accountName.String
 		}
+		c.AccountKarma = int(accountKarma.Int64)
 		c.CreatedAt = time.Unix(created, 0)
 		c.Hidden = hidden == 1
 		comments = append(comments, c)
@@ -951,7 +957,8 @@ func scanStory(scanner interface{ Scan(dest ...any) error }) (model.Story, error
 	var created int64
 	var hidden int
 	var accountName sql.NullString
-	if err := scanner.Scan(&s.ID, &s.Title, &url, &text, &tagsRaw, &s.Score, &s.CommentCount, &s.FlagCount, &created, &hidden, &s.AccountID, &accountName); err != nil {
+	var accountKarma sql.NullInt64
+	if err := scanner.Scan(&s.ID, &s.Title, &url, &text, &tagsRaw, &s.Score, &s.CommentCount, &s.FlagCount, &created, &hidden, &s.AccountID, &accountName, &accountKarma); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.Story{}, store.ErrNotFound
 		}
@@ -969,6 +976,7 @@ func scanStory(scanner interface{ Scan(dest ...any) error }) (model.Story, error
 	if accountName.Valid {
 		s.AccountName = accountName.String
 	}
+	s.AccountKarma = int(accountKarma.Int64)
 	s.CreatedAt = time.Unix(created, 0)
 	s.Hidden = hidden == 1
 	return s, nil
