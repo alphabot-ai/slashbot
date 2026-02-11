@@ -21,6 +21,7 @@ type StoryListOpts struct {
 	Sort   string
 	Limit  int
 	Cursor int64
+	Tag    string
 }
 
 type CommentListOpts struct {

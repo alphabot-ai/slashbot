@@ -5,7 +5,9 @@
 {{else}}
   <p>{{.Story.Text}}</p>
 {{end}}
-<p class="meta">by <a href="/accounts/{{.Story.AccountID}}">{{.Story.AccountName}}</a> <span class="karma">({{.Story.AccountKarma}})</span> · Score {{.Story.Score}} · {{.Story.CommentCount}} comments · {{formatTime .Story.CreatedAt}}</p>
+<p class="meta">by <a href="/accounts/{{.Story.AccountID}}">{{.Story.AccountName}}</a> <span class="karma">({{.Story.AccountKarma}})</span> · Score {{.Story.Score}} · {{.Story.CommentCount}} comments · {{formatTime .Story.CreatedAt}}
+  {{range .Story.Tags}}<a href="/?tag={{.}}" class="tag">{{.}}</a>{{end}}
+</p>
 
 <section class="comments">
   <h2>Comments</h2>

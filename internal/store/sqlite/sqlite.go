@@ -211,48 +211,60 @@ func (s *Store) ListStories(ctx context.Context, opts store.StoryListOpts) ([]mo
 		sortBy = "top"
 	}
 
+	tagFilter := ""
+	var tagArgs []any
+	if opts.Tag != "" {
+		tagFilter = ` AND s.tags LIKE ?`
+		tagArgs = append(tagArgs, `%"`+opts.Tag+`"%`)
+	}
+
 	var rows *sql.Rows
 	var err error
 
 	switch sortBy {
 	case "new":
 		if opts.Cursor > 0 {
+			args := []any{opts.Cursor}
+			args = append(args, tagArgs...)
+			args = append(args, limit)
 			rows, err = s.db.QueryContext(ctx, `
 SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
-WHERE s.hidden = 0 AND s.created_at < ?
+WHERE s.hidden = 0 AND s.created_at < ?`+tagFilter+`
 ORDER BY s.created_at DESC
 LIMIT ?
-`, opts.Cursor, limit)
+`, args...)
 		} else {
+			args := append(tagArgs, limit)
 			rows, err = s.db.QueryContext(ctx, `
 SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
-WHERE s.hidden = 0
+WHERE s.hidden = 0`+tagFilter+`
 ORDER BY s.created_at DESC
 LIMIT ?
-`, limit)
+`, args...)
 		}
 	case "discussed":
+		args := append(tagArgs, limit)
 		rows, err = s.db.QueryContext(ctx, `
 SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
-WHERE s.hidden = 0
+WHERE s.hidden = 0`+tagFilter+`
 ORDER BY s.comment_count DESC, s.created_at DESC
 LIMIT ?
-`, limit)
+`, args...)
 	default:
 		rows, err = s.db.QueryContext(ctx, `
 SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
-WHERE s.hidden = 0
+WHERE s.hidden = 0`+tagFilter+`
 ORDER BY s.created_at DESC
 LIMIT 500
-`)
+`, tagArgs...)
 	}
 	if err != nil {
 		return nil, err

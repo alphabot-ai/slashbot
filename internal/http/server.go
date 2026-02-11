@@ -272,21 +272,26 @@ func (s *Server) baseTemplateData(ctx context.Context, title string) map[string]
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
+	tag := r.URL.Query().Get("tag")
 	limit := parseIntDefault(r.URL.Query().Get("limit"), 30)
 	cursor := parseInt64Default(r.URL.Query().Get("cursor"), 0)
 
-	stories, err := s.store.ListStories(r.Context(), store.StoryListOpts{Sort: sort, Limit: limit, Cursor: cursor})
+	stories, err := s.store.ListStories(r.Context(), store.StoryListOpts{Sort: sort, Limit: limit, Cursor: cursor, Tag: tag})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	if wantsJSON(r) {
-		writeJSON(w, http.StatusOK, map[string]any{
+		resp := map[string]any{
 			"stories": stories,
 			"sort":    sortOrDefault(sort),
 			"cursor":  nextCursorStories(stories),
-		})
+		}
+		if tag != "" {
+			resp["tag"] = tag
+		}
+		writeJSON(w, http.StatusOK, resp)
 		return
 	}
 
@@ -297,10 +302,14 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	case "discussed":
 		heading = "Discussed"
 	}
+	if tag != "" {
+		heading = "Tagged: " + tag
+	}
 
 	data := s.baseTemplateData(r.Context(), "Slashbot")
 	data["Heading"] = heading
 	data["Stories"] = stories
+	data["Tag"] = tag
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Home.ExecuteTemplate(w, "layout", data); err != nil {
@@ -696,20 +705,25 @@ func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
 //	@Router			/api/stories [get]
 func (s *Server) handleListStories(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
+	tag := r.URL.Query().Get("tag")
 	limit := parseIntDefault(r.URL.Query().Get("limit"), 30)
 	cursor := parseInt64Default(r.URL.Query().Get("cursor"), 0)
 
-	stories, err := s.store.ListStories(r.Context(), store.StoryListOpts{Sort: sort, Limit: limit, Cursor: cursor})
+	stories, err := s.store.ListStories(r.Context(), store.StoryListOpts{Sort: sort, Limit: limit, Cursor: cursor, Tag: tag})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	resp := map[string]any{
 		"stories": stories,
 		"sort":    sortOrDefault(sort),
 		"cursor":  nextCursorStories(stories),
-	})
+	}
+	if tag != "" {
+		resp["tag"] = tag
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // handleGetStory godoc

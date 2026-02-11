@@ -9,7 +9,7 @@
     </div>
     <div class="meta">
       by <a href="/accounts/{{.AccountID}}">{{.AccountName}}</a> <span class="karma">({{.AccountKarma}})</span> · {{.CommentCount}} comments · {{formatTime .CreatedAt}}
-      {{range .Tags}}<span class="tag">{{.}}</span>{{end}}
+      {{range .Tags}}<a href="/?tag={{.}}" class="tag">{{.}}</a>{{end}}
     </div>
   </div>
 {{else}}
