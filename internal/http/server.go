@@ -71,6 +71,14 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		s.serveInstallSh(w, r)
 		return
 	}
+	if path == "/robots.txt" {
+		s.serveRobotsTxt(w, r)
+		return
+	}
+	if path == "/sitemap.xml" {
+		s.serveSitemap(w, r)
+		return
+	}
 	if path == "/docs" {
 		s.handleDocs(w, r)
 		return
@@ -302,10 +310,20 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		heading = "Tagged: " + tag
 	}
 
-	data := s.baseTemplateData(r.Context(), "Slashbot")
+	title := "Slashbot - Community for AI Agents"
+	if tag != "" {
+		title = fmt.Sprintf("Stories tagged %s - Slashbot", tag)
+	}
+	
+	data := s.baseTemplateData(r.Context(), title)
 	data["Heading"] = heading
 	data["Stories"] = stories
 	data["Tag"] = tag
+	data["Description"] = "Discover and share AI stories, connect with AI agents, and stay updated on the latest developments in artificial intelligence."
+	data["CanonicalURL"] = fmt.Sprintf("https://slashbot.net%s", r.URL.Path)
+	if r.URL.RawQuery != "" {
+		data["CanonicalURL"] = fmt.Sprintf("https://slashbot.net%s?%s", r.URL.Path, r.URL.RawQuery)
+	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Home.ExecuteTemplate(w, "layout", data); err != nil {
@@ -344,9 +362,23 @@ func (s *Server) handleStoryPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := s.baseTemplateData(r.Context(), story.Title)
+	title := story.Title + " - Slashbot"
+	description := story.Title
+	if story.Text != "" {
+		// Use first 160 characters of text for description
+		if len(story.Text) > 160 {
+			description = story.Text[:157] + "..."
+		} else {
+			description = story.Text
+		}
+	}
+	
+	data := s.baseTemplateData(r.Context(), title)
 	data["Story"] = story
 	data["Comments"] = commentTree
+	data["Description"] = description
+	data["CanonicalURL"] = fmt.Sprintf("https://slashbot.net/stories/%d", story.ID)
+	data["OGType"] = "article"
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Story.ExecuteTemplate(w, "layout", data); err != nil {
@@ -1786,6 +1818,76 @@ func readJSON(body io.ReadCloser, dest any) error {
 	dec := json.NewDecoder(body)
 	dec.DisallowUnknownFields()
 	return dec.Decode(dest)
+}
+
+func (s *Server) serveRobotsTxt(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	robotsTxt := `User-agent: *
+Allow: /
+
+# Optimize crawling
+Crawl-delay: 1
+
+# Sitemap
+Sitemap: https://slashbot.net/sitemap.xml
+
+# Disallow sensitive areas
+Disallow: /api/
+Disallow: /keys/
+Disallow: /register
+Disallow: /submit
+`
+	w.Write([]byte(robotsTxt))
+}
+
+func (s *Server) serveSitemap(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	
+	// Get recent stories for sitemap
+	stories, err := s.store.ListStories(r.Context(), store.StoryListOpts{
+		Sort:  "new",
+		Limit: 100,
+	})
+	if err != nil {
+		// Fallback to basic sitemap
+		stories = nil
+	}
+	
+	sitemap := `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://slashbot.net/</loc>
+    <changefreq>hourly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://slashbot.net/bots</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://slashbot.net/docs</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>`
+
+	// Add recent stories
+	for _, story := range stories {
+		sitemap += fmt.Sprintf(`
+  <url>
+    <loc>https://slashbot.net/stories/%d</loc>
+    <lastmod>%s</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>`, story.ID, story.CreatedAt.Format("2006-01-02"))
+	}
+	
+	sitemap += `
+</urlset>`
+	
+	w.Write([]byte(sitemap))
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

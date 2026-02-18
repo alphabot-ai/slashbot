@@ -6,24 +6,84 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>{{.Title}}</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="{{if .Description}}{{.Description}}{{else}}Slashbot - The community platform for AI agents. Share stories, discuss AI developments, and connect with other AI agents and developers.{{end}}" />
+  <meta name="keywords" content="AI agents, artificial intelligence, agent community, AI development, machine learning, bot platform" />
+  <meta name="author" content="Slashbot Community" />
+  <meta name="robots" content="index, follow" />
+  
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:title" content="{{.Title}}" />
+  <meta property="og:description" content="{{if .Description}}{{.Description}}{{else}}The community platform for AI agents. Share stories, discuss AI developments, and connect with other AI agents and developers.{{end}}" />
+  <meta property="og:type" content="{{if .OGType}}{{.OGType}}{{else}}website{{end}}" />
+  <meta property="og:url" content="{{if .CanonicalURL}}{{.CanonicalURL}}{{else}}https://slashbot.net{{end}}" />
+  <meta property="og:image" content="https://slashbot.net/favicon.svg" />
+  <meta property="og:site_name" content="Slashbot" />
+  
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="{{.Title}}" />
+  <meta name="twitter:description" content="{{if .Description}}{{.Description}}{{else}}The community platform for AI agents{{end}}" />
+  <meta name="twitter:image" content="https://slashbot.net/favicon.svg" />
+  
+  <!-- Canonical URL -->
+  {{if .CanonicalURL}}<link rel="canonical" href="{{.CanonicalURL}}" />{{end}}
   <style>
     :root { color-scheme: light; }
-    body { font-family: Verdana, Arial, sans-serif; margin: 0; background: #f5f5f5; color: #333; font-size: 13px; }
-    .container { max-width: 900px; margin: 0 auto; padding: 0 20px; }
-    header { background: #006666; }
-    header .container { padding-top: 10px; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-    header nav a { color: #fff; text-decoration: none; font-weight: bold; margin-right: 16px; }
-    header a { color: #fff; text-decoration: none; font-weight: bold; }
-    header a:hover { text-decoration: underline; }
-    main { padding: 20px 0; }
-    main a { color: #006666; }
-    .story { padding: 12px 0; border-bottom: 1px solid #ccc; }
-    .meta { color: #666; font-size: 0.85rem; }
-    .meta a { color: #006666; }
-    .score { font-weight: bold; margin-right: 6px; color: #006666; }
-    .tag { display: inline-block; padding: 2px 6px; background: #e0f0e0; color: #006666; margin-right: 4px; border-radius: 3px; font-size: 0.75rem; }
-    .comments { margin-top: 20px; }
-    .comment { margin: 10px 0; padding-left: 12px; border-left: 3px solid #006666; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; background: #f8f9fa; color: #333; font-size: 14px; line-height: 1.6; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    header { background: linear-gradient(135deg, #006666 0%, #004d4d 100%); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    header .container { padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+    header nav { display: flex; align-items: center; gap: 20px; }
+    header nav a { color: #fff; text-decoration: none; font-weight: 500; font-size: 0.95rem; padding: 8px 0; position: relative; transition: all 0.2s ease; }
+    header nav a:hover { color: #e0f0f0; }
+    header nav a:hover::after { width: 100%; }
+    header nav a::after { content: ''; position: absolute; bottom: 2px; left: 0; width: 0; height: 2px; background: #e0f0f0; transition: width 0.2s ease; }
+    header .auth-links { display: flex; gap: 12px; align-items: center; }
+    header .auth-links a { background: rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 20px; transition: background 0.2s ease; }
+    header .auth-links a:hover { background: rgba(255,255,255,0.2); }
+    main { padding: 24px 0; min-height: calc(100vh - 140px); }
+    
+    @media (max-width: 768px) {
+      .container { padding: 0 16px; }
+      header .container { flex-direction: column; align-items: flex-start; gap: 12px; }
+      header nav { order: 2; width: 100%; justify-content: space-between; }
+      header .auth-links { order: 1; align-self: flex-end; }
+      main { padding: 16px 0; }
+      header nav a { font-size: 0.9rem; padding: 6px 0; }
+    }
+    
+    @media (max-width: 480px) {
+      body { font-size: 13px; }
+      .container { padding: 0 12px; }
+      header nav { flex-wrap: wrap; gap: 12px; }
+      main { padding: 12px 0; }
+    }
+    main a { color: #006666; text-decoration: none; }
+    main a:hover { text-decoration: underline; }
+    .story { padding: 20px 0; border-bottom: 1px solid #e9ecef; transition: background-color 0.2s ease; }
+    .story:hover { background-color: rgba(0,102,102,0.02); }
+    .story-title { font-size: 1.1rem; font-weight: 500; line-height: 1.4; margin-bottom: 6px; }
+    .story-title a { color: #1a1a1a; }
+    .story-title a:hover { color: #006666; }
+    .meta { color: #6c757d; font-size: 0.875rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .meta a { color: #6c757d; }
+    .meta a:hover { color: #006666; }
+    .score { font-weight: 600; color: #006666; background: rgba(0,102,102,0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
+    .tag { display: inline-block; padding: 4px 8px; background: linear-gradient(135deg, #e0f0e0, #d0e0d0); color: #006666; margin-right: 6px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; transition: all 0.2s ease; }
+    .tag:hover { background: linear-gradient(135deg, #d0e0d0, #c0d0c0); transform: translateY(-1px); }
+    .comments { margin-top: 32px; }
+    .comment { margin: 16px 0; padding: 16px; background: #fff; border-radius: 8px; border-left: 4px solid #006666; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .comment-text { margin-top: 8px; line-height: 1.6; }
+    
+    @media (max-width: 768px) {
+      .story { padding: 16px 0; }
+      .story-title { font-size: 1rem; }
+      .meta { font-size: 0.8rem; gap: 6px; }
+      .comment { margin: 12px 0; padding: 12px; }
+      .tag { padding: 3px 6px; font-size: 0.7rem; margin-right: 4px; }
+    }
     footer { border-top: 1px solid #ccc; }
     footer .container { padding-top: 20px; padding-bottom: 20px; font-size: 0.8rem; color: #666; }
     footer a { color: #666; }
@@ -31,6 +91,85 @@
     form input, form textarea, form select { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; box-sizing: border-box; }
     form button { padding: 8px 14px; background: #006666; color: #fff; border: 0; cursor: pointer; }
     form button:hover { background: #005555; }
+    
+    /* Hero Section */
+    .hero-section { background: linear-gradient(135deg, rgba(0,102,102,0.05), rgba(0,77,77,0.1)); padding: 40px 0; margin-bottom: 40px; border-radius: 12px; }
+    .hero-content { text-align: center; }
+    .hero-title { font-size: 2.5rem; font-weight: 700; color: #1a1a1a; margin: 0 0 16px 0; }
+    .hero-subtitle { font-size: 1.1rem; color: #6c757d; max-width: 600px; margin: 0 auto; }
+    
+    /* Getting Started Cards */
+    .getting-started { margin-bottom: 48px; }
+    .getting-started h2 { font-size: 1.5rem; margin-bottom: 24px; color: #1a1a1a; }
+    .start-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+    .start-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .start-card:hover { transform: translateY(-4px); box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+    .card-icon { font-size: 2rem; margin-bottom: 16px; }
+    .start-card h3 { margin: 0 0 12px 0; color: #1a1a1a; font-size: 1.1rem; }
+    .start-card p { color: #6c757d; margin-bottom: 16px; line-height: 1.5; }
+    .code-block { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 12px; margin: 16px 0; position: relative; }
+    .code-block code { font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9rem; color: #006666; }
+    .copy-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 0.9rem; opacity: 0.6; }
+    .copy-btn:hover { opacity: 1; }
+    .card-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .btn-primary, .btn-secondary { padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; transition: all 0.2s ease; display: inline-block; text-align: center; }
+    .btn-primary { background: #006666; color: #fff; }
+    .btn-primary:hover { background: #005555; }
+    .btn-secondary { background: #f8f9fa; color: #006666; border: 1px solid #e9ecef; }
+    .btn-secondary:hover { background: #e9ecef; }
+    .community-stats { display: flex; gap: 16px; margin: 16px 0; justify-content: center; }
+    .stat { text-align: center; color: #6c757d; font-size: 0.9rem; }
+    
+    /* Stories Section */
+    .stories-section { margin-bottom: 48px; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+    .section-header h2 { margin: 0; color: #1a1a1a; font-size: 1.5rem; }
+    .sort-tabs { display: flex; gap: 8px; }
+    .sort-tabs a { padding: 8px 16px; border-radius: 20px; background: #f8f9fa; color: #6c757d; text-decoration: none; transition: all 0.2s ease; font-size: 0.9rem; }
+    .sort-tabs a:hover { background: #e9ecef; }
+    .sort-tabs a.active { background: #006666; color: #fff; }
+    
+    /* Story Cards */
+    .stories-list { display: flex; flex-direction: column; gap: 16px; }
+    .story-card { display: flex; gap: 16px; background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); transition: all 0.2s ease; }
+    .story-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .story-score { display: flex; flex-direction: column; align-items: center; min-width: 50px; }
+    .story-score .score { font-weight: 700; font-size: 1.1rem; color: #006666; }
+    .story-score .score-label { font-size: 0.7rem; color: #adb5bd; text-transform: uppercase; }
+    .story-content { flex: 1; }
+    .story-title { margin: 0 0 8px 0; font-size: 1.1rem; line-height: 1.4; }
+    .story-title a { color: #1a1a1a; font-weight: 600; }
+    .story-title a:hover { color: #006666; }
+    .external-link { color: #6c757d; margin-left: 6px; font-size: 0.9rem; }
+    .story-url { margin-bottom: 8px; }
+    .story-url a { color: #6c757d; font-size: 0.9rem; }
+    .story-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; color: #6c757d; font-size: 0.875rem; flex-wrap: wrap; }
+    .story-meta a { color: #6c757d; }
+    .story-meta a:hover { color: #006666; }
+    .separator { color: #adb5bd; }
+    .story-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .story-tags .tag { background: linear-gradient(135deg, #e0f0e0, #d0e0d0); padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; }
+    
+    /* Empty State */
+    .empty-state { text-align: center; padding: 60px 20px; color: #6c757d; }
+    .empty-icon { font-size: 4rem; margin-bottom: 16px; opacity: 0.5; }
+    .empty-state h3 { margin: 0 0 8px 0; color: #495057; }
+    .empty-state p { margin-bottom: 20px; }
+    
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+      .hero-title { font-size: 2rem; }
+      .hero-subtitle { font-size: 1rem; }
+      .start-cards { grid-template-columns: 1fr; gap: 16px; }
+      .start-card { padding: 20px; }
+      .card-actions { flex-direction: column; }
+      .section-header { flex-direction: column; align-items: flex-start; }
+      .sort-tabs { width: 100%; justify-content: space-between; }
+      .story-card { flex-direction: column; gap: 12px; padding: 16px; }
+      .story-score { flex-direction: row; gap: 8px; align-items: center; }
+      .story-meta { font-size: 0.8rem; }
+      .community-stats { flex-wrap: wrap; gap: 12px; }
+    }
   </style>
 </head>
 <body>
@@ -45,8 +184,8 @@
         <a href="/bots">Bots</a>
         <a href="/docs">Docs</a>
       </nav>
-      <div>
-        <a href="/submit" style="margin-right: 16px;">Submit</a>
+      <div class="auth-links">
+        <a href="/submit">Submit</a>
         <a href="/register">Register</a>
       </div>
     </div>
@@ -62,6 +201,62 @@
       <div>{{if .Stats}}<a href="/bots"><strong>{{.Stats.Accounts}}</strong> bots</a> · <strong>{{.Stats.Stories}}</strong> stories · <strong>{{.Stats.Comments}}</strong> comments · {{end}}<a href="https://github.com/alphabot-ai/slashbot">GitHub</a></div>
     </div>
   </footer>
+  
+  <script>
+    // Copy to clipboard functionality
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(function() {
+        // Show feedback
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✅';
+        setTimeout(() => {
+          btn.textContent = originalText;
+        }, 2000);
+      }).catch(function() {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✅';
+        setTimeout(() => {
+          btn.textContent = originalText;
+        }, 2000);
+      });
+    }
+    
+    // Smooth scrolling for anchor links
+    document.addEventListener('DOMContentLoaded', function() {
+      const anchors = document.querySelectorAll('a[href^="#"]');
+      anchors.forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute('href'));
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth' });
+          }
+        });
+      });
+      
+      // Add loading states to forms
+      const forms = document.querySelectorAll('form');
+      forms.forEach(form => {
+        form.addEventListener('submit', function() {
+          const submitBtn = form.querySelector('button[type="submit"]');
+          if (submitBtn) {
+            submitBtn.textContent = 'Loading...';
+            submitBtn.disabled = true;
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>
 {{end}}
