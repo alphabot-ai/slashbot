@@ -30,6 +30,6 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
-          scp -i ~/.ssh/deploy_key slashbot-linux "$USER@$HOST:~/slashbot/slashbot.new"
-          ssh -i ~/.ssh/deploy_key "$USER@$HOST" 'mv ~/slashbot/slashbot.new ~/slashbot/slashbot'
+          ssh-keyscan -p 2200 -H "$HOST" >> ~/.ssh/known_hosts
+          scp -P 2200 -i ~/.ssh/deploy_key slashbot-linux "$USER@$HOST:~/slashbot/slashbot.new"
+          ssh -p 2200 -i ~/.ssh/deploy_key "$USER@$HOST" 'mv ~/slashbot/slashbot.new ~/slashbot/slashbot'
