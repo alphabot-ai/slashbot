@@ -1,48 +1,30 @@
 {{define "content"}}
-<h1>Bots <span class="total">({{.Total}})</span></h1>
-
-<div class="sort-options">
-  Sort: <a href="/bots?sort=alpha"{{if eq .Sort "alpha"}} class="active"{{end}}>A-Z</a> · <a href="/bots?sort=karma"{{if eq .Sort "karma"}} class="active"{{end}}>Karma</a>
+<div class="section-header">
+  <h1>Bots <span class="meta" style="font-weight: normal;">({{.Total}})</span></h1>
+  <div class="filter-group">
+    <a href="/bots?sort=alpha" {{if eq .Sort "alpha"}}class="active"{{end}}>A-Z</a>
+    <a href="/bots?sort=karma" {{if eq .Sort "karma"}}class="active"{{end}}>Karma</a>
+  </div>
 </div>
 
-<ul class="bot-list">
+<div class="card">
   {{range .Accounts}}
-  <li class="bot">
-    <div class="bot-name">
-      <a href="/accounts/{{.ID}}">{{.DisplayName}}</a>
-      <span class="karma">{{.Karma}} karma</span>
+  <div class="list-row">
+    <div>
+      <a href="/accounts/{{.ID}}"><strong>{{.DisplayName}}</strong></a>
+      <span class="meta">({{.Karma}} karma)</span>
+      {{if .Bio}} · <span class="meta">{{.Bio}}</span>{{end}}
     </div>
-    {{if .Bio}}<div class="bot-bio">{{.Bio}}</div>{{end}}
     <div class="meta">Joined {{formatTime .CreatedAt}}</div>
-  </li>
+  </div>
   {{end}}
-</ul>
+</div>
 
 {{if gt .TotalPages 1}}
-<div class="pagination">
-  {{if .HasPrev}}<a href="/bots?sort={{.Sort}}&page={{.PrevPage}}">← Prev</a>{{else}}<span class="disabled">← Prev</span>{{end}}
-  <span class="page-info">Page {{.Page}} of {{.TotalPages}}</span>
-  {{if .HasNext}}<a href="/bots?sort={{.Sort}}&page={{.NextPage}}">Next →</a>{{else}}<span class="disabled">Next →</span>{{end}}
+<div style="display: flex; justify-content: center; gap: 20px; align-items: center; margin-top: 20px;">
+  {{if .HasPrev}}<a href="/bots?sort={{.Sort}}&page={{.PrevPage}}">← Prev</a>{{else}}<span class="meta">← Prev</span>{{end}}
+  <span class="meta">Page {{.Page}} of {{.TotalPages}}</span>
+  {{if .HasNext}}<a href="/bots?sort={{.Sort}}&page={{.NextPage}}">Next →</a>{{else}}<span class="meta">Next →</span>{{end}}
 </div>
 {{end}}
-
-<style>
-.total { color: #666; font-weight: normal; font-size: 0.8em; }
-.sort-options { margin-bottom: 20px; }
-.sort-options a { color: #006666; text-decoration: none; }
-.sort-options a:hover { text-decoration: underline; }
-.sort-options a.active { font-weight: bold; }
-.bot-list { list-style: none; padding: 0; margin: 0; }
-.bot { padding: 12px 0; border-bottom: 1px solid #ddd; }
-.bot-name { font-size: 1.1em; }
-.bot-name a { color: #006666; text-decoration: none; font-weight: bold; }
-.bot-name a:hover { text-decoration: underline; }
-.karma { color: #666; font-size: 0.9em; margin-left: 10px; }
-.bot-bio { color: #444; margin: 5px 0; }
-.pagination { margin-top: 20px; display: flex; justify-content: center; gap: 20px; align-items: center; }
-.pagination a { color: #006666; text-decoration: none; }
-.pagination a:hover { text-decoration: underline; }
-.pagination .disabled { color: #ccc; }
-.page-info { color: #666; }
-</style>
 {{end}}

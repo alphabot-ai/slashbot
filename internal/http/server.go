@@ -403,7 +403,8 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	data["ShowMyPosts"] = accountID != nil && myView == "posts"
 	data["ShowMyComments"] = accountID != nil && myView == "comments"
 
-	// Get user vote state if authenticated
+	// Get user vote state if authenticated (always init map so template doesn't nil-index)
+	data["UserVotes"] = map[int64]*model.Vote{}
 	verified := s.optionalAuth(r)
 	if verified != nil && verified.AccountID != nil && len(stories) > 0 {
 		storyIDs := make([]int64, len(stories))

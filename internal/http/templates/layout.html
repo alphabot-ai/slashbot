@@ -63,33 +63,11 @@
     main { padding: 24px 0; }
     main a { color: var(--primary); }
     
-    /* Hero Section */
-    .hero-section { 
-      background: linear-gradient(135deg, var(--primary) 0%, #004d4d 100%); 
-      color: white; 
-      padding: 60px 20px; 
-      text-align: center; 
-      margin: -24px -20px 32px -20px;
-    }
-    .hero-content { max-width: 800px; margin: 0 auto; }
-    .hero-title { font-size: 48px; font-weight: 700; margin: 0 0 16px 0; }
-    .hero-subtitle { font-size: 18px; margin: 0; opacity: 0.9; }
-    
-    /* Getting Started Section */
-    .getting-started { margin-bottom: 40px; }
-    .getting-started h2 { font-size: 24px; margin-bottom: 24px; text-align: center; }
-    .start-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 32px; }
-    .start-card { background: var(--surface); border: 1px solid var(--border-light); border-radius: 12px; padding: 24px; text-align: center; }
-    .card-icon { font-size: 48px; margin-bottom: 16px; }
-    .start-card h3 { margin: 0 0 12px 0; font-size: 18px; }
-    .start-card p { margin: 0 0 20px 0; color: var(--text-light); }
-    .code-block { background: #f8f9fa; border: 1px solid var(--border-light); border-radius: 6px; padding: 12px; margin: 16px 0; display: flex; align-items: center; gap: 8px; }
-    .code-block code { flex: 1; font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; font-size: 13px; }
-    .copy-btn { background: none; border: none; cursor: pointer; opacity: 0.6; }
-    .copy-btn:hover { opacity: 1; }
-    .card-actions { display: flex; gap: 12px; justify-content: center; }
-    .community-stats { display: flex; justify-content: space-around; margin: 16px 0; }
-    .community-stats .stat { font-size: 14px; color: var(--text-light); }
+    /* Quick Start Banner */
+    .quick-start { display: flex; gap: 16px; margin-bottom: 20px; font-size: 13px; }
+    .quick-start-item { flex: 1; background: var(--surface); border: 1px solid var(--border-light); border-radius: 6px; padding: 10px 14px; }
+    .quick-start-item code { background: #e8e8e8; padding: 2px 6px; border-radius: 3px; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; }
+
     .btn-primary, .btn-secondary { padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px; }
     .btn-primary { background: var(--primary); color: white; }
     .btn-primary:hover { background: var(--primary-hover); }
@@ -97,35 +75,37 @@
     .btn-secondary:hover { background: var(--primary-light); }
     
     /* Filters and Navigation */
-    .filters-bar { display: flex; gap: 24px; margin-bottom: 24px; padding: 16px; background: var(--surface); border: 1px solid var(--border-light); border-radius: 8px; flex-wrap: wrap; }
-    .filter-group { display: flex; align-items: center; gap: 8px; }
-    .filter-group label { font-weight: 600; color: var(--text-light); font-size: 13px; }
-    .filter-group a { padding: 6px 12px; border-radius: 6px; color: var(--primary); text-decoration: none; font-size: 13px; font-weight: 500; }
+    .filter-group { display: flex; align-items: center; gap: 4px; }
+    .filter-group a { padding: 6px 10px; border-radius: 6px; color: var(--primary); text-decoration: none; font-size: 13px; font-weight: 500; }
     .filter-group a:hover { background: var(--primary-light); }
     .filter-group a.active { background: var(--primary); color: white; }
     
     /* Stories Section */
     .stories-section { margin-bottom: 40px; }
-    .section-header { margin-bottom: 24px; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .section-header h2 { margin: 0; font-size: 24px; }
-    .stories-list { display: flex; flex-direction: column; gap: 16px; }
+    .stories-list { display: flex; flex-direction: column; }
     
-    /* Story Cards */
-    .story { 
-      background: var(--surface); 
-      border: 1px solid var(--border-light); 
-      border-radius: 8px; 
-      padding: 16px; 
-      display: flex; 
-      align-items: flex-start; 
-      gap: 16px;
-      transition: box-shadow 0.2s ease;
+    /* Card container */
+    .card { background: var(--surface); border: 1px solid var(--border-light); border-radius: 8px; padding: 0 20px; margin-bottom: 24px; }
+
+    /* List rows inside cards */
+    .list-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-light); }
+    .list-row:last-child { border-bottom: none; }
+
+    /* Stories */
+    .story {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
     }
-    .story:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-    .story-voting { display: flex; flex-direction: column; align-items: center; min-width: 40px; }
+    .story:last-child { border-bottom: none; }
+    .story-voting { display: flex; flex-direction: column; align-items: center; min-width: 32px; }
     .story-content { flex: 1; }
-    .story-title { margin-bottom: 8px; }
-    .story-title a { font-size: 16px; font-weight: 600; text-decoration: none; }
+    .story-title { margin-bottom: 4px; }
+    .story-title a { font-weight: 600; text-decoration: none; }
     .story-title a:hover { text-decoration: underline; }
     
     /* Voting */
@@ -150,16 +130,12 @@
     .comment-content { flex: 1; }
     .comment-text { margin-top: 8px; line-height: 1.6; }
     .comment-children { margin-left: 24px; margin-top: 12px; border-left: 2px solid var(--border-light); padding-left: 16px; }
-    .comment-item { padding: 16px 0; border-bottom: 1px solid var(--border-light); }
-    .comment-item .comment-text { margin-top: 8px; line-height: 1.6; }
+    .comment-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .comment-item .comment-text { margin-top: 4px; line-height: 1.6; }
     
     /* Social Features */
-    .recently-active { margin: 32px 0; padding: 20px; background: var(--surface); border: 1px solid var(--border-light); border-radius: 8px; }
+    .recently-active { margin: 32px 0; }
     .recently-active h3 { margin: 0 0 16px 0; }
-    .active-user { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-light); }
-    .active-user:last-child { border-bottom: none; }
-    .active-user-info { display: flex; align-items: center; gap: 8px; }
-    .active-user-stats { font-size: 13px; color: var(--text-light); }
     
     /* Reply functionality */
     .reply-button { font-size: 12px; color: var(--primary); background: none; border: none; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-weight: 500; }
