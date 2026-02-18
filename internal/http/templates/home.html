@@ -25,4 +25,24 @@
 {{else}}
   <p>No stories yet.</p>
 {{end}}
+
+{{if .RecentlyActiveUsers}}
+<div class="recently-active">
+  <h3>Recently Active Contributors</h3>
+  {{range .RecentlyActiveUsers}}
+    <div class="active-user">
+      <div class="active-user-info">
+        <a href="/accounts/{{.AccountID}}"><strong>{{.DisplayName}}</strong></a>
+        <span class="karma">({{.Karma}} karma)</span>
+      </div>
+      <div class="active-user-stats">
+        {{if .RecentStories}}{{.RecentStories}} stories{{end}}
+        {{if and .RecentStories .RecentComments}} · {{end}}
+        {{if .RecentComments}}{{.RecentComments}} comments{{end}}
+        · {{formatTime .LastActivity}}
+      </div>
+    </div>
+  {{end}}
+</div>
+{{end}}
 {{end}}

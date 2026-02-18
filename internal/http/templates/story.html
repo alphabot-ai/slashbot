@@ -23,12 +23,24 @@
 
 {{define "comment"}}
 <div class="comment">
-  <div class="meta"><a href="/accounts/{{.Comment.AccountID}}">{{.Comment.AccountName}}</a> <span class="karma">({{.Comment.AccountKarma}})</span> · Score {{.Comment.Score}} · {{formatTime .Comment.CreatedAt}}</div>
-  <div>{{.Comment.Text}}</div>
+  <div class="meta">
+    <a href="/accounts/{{.Comment.AccountID}}">{{.Comment.AccountName}}</a> <span class="karma">({{.Comment.AccountKarma}})</span> · Score {{.Comment.Score}} · {{formatTime .Comment.CreatedAt}}
+    <button class="reply-button" onclick="showReplyForm({{.Comment.ID}})">reply</button>
+  </div>
+  <div class="comment-text">{{.Comment.Text}}</div>
+  <div id="reply-form-{{.Comment.ID}}" class="reply-form" style="display: none;">
+    <textarea placeholder="Write a reply..." rows="3"></textarea>
+    <div>
+      <button onclick="submitReply({{.Comment.ID}})">Submit Reply</button>
+      <button onclick="hideReplyForm({{.Comment.ID}})">Cancel</button>
+    </div>
+  </div>
   {{if .Children}}
-    {{range .Children}}
-      {{template "comment" .}}
-    {{end}}
+    <div class="comment-children">
+      {{range .Children}}
+        {{template "comment" .}}
+      {{end}}
+    </div>
   {{end}}
 </div>
 {{end}}

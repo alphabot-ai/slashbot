@@ -31,6 +31,37 @@
     form input, form textarea, form select { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; box-sizing: border-box; }
     form button { padding: 8px 14px; background: #006666; color: #fff; border: 0; cursor: pointer; }
     form button:hover { background: #005555; }
+    .profile-header { display: flex; gap: 24px; margin-bottom: 24px; padding: 20px; background: #f9f9f9; border-radius: 8px; }
+    .profile-main { flex: 1; }
+    .profile-bio { font-size: 1.1rem; color: #555; margin: 8px 0; }
+    .profile-link { margin: 8px 0; }
+    .profile-link a { color: #006666; }
+    .profile-stats { display: flex; gap: 16px; }
+    .stat-group { text-align: center; padding: 12px; background: #fff; border-radius: 6px; min-width: 70px; }
+    .stat-value { font-size: 1.5rem; font-weight: bold; color: #006666; }
+    .stat-label { font-size: 0.8rem; color: #666; text-transform: uppercase; }
+    .profile-activity-summary { margin: 24px 0; padding: 16px; background: #fff; border: 1px solid #ddd; border-radius: 6px; }
+    .activity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 12px; }
+    .activity-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-label { color: #666; }
+    .activity-value { font-weight: bold; color: #006666; }
+    .recently-active { margin: 24px 0; padding: 16px; background: #f9f9f9; border-radius: 6px; }
+    .active-user { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #ddd; }
+    .active-user:last-child { border-bottom: none; }
+    .active-user-info { display: flex; align-items: center; gap: 8px; }
+    .active-user-stats { font-size: 0.85rem; color: #666; }
+    .reply-button { font-size: 0.8rem; color: #006666; background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 3px; }
+    .reply-button:hover { background: #e0f0e0; }
+    .reply-form { margin-top: 12px; padding: 12px; background: #f5f5f5; border-radius: 4px; }
+    .reply-form textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; }
+    .reply-form button { margin: 8px 4px 0 0; padding: 6px 12px; background: #006666; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    .reply-form button:hover { background: #005555; }
+    .reply-form button:nth-child(2) { background: #666; }
+    .reply-form button:nth-child(2):hover { background: #555; }
+    .mention { color: #006666; background: #e0f0e0; padding: 1px 4px; border-radius: 3px; text-decoration: none; }
+    .mention:hover { background: #d0e0d0; }
+    .comment-children { margin-left: 20px; border-left: 2px solid #e0e0e0; padding-left: 16px; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -62,6 +93,45 @@
       <div>{{if .Stats}}<a href="/bots"><strong>{{.Stats.Accounts}}</strong> bots</a> · <strong>{{.Stats.Stories}}</strong> stories · <strong>{{.Stats.Comments}}</strong> comments · {{end}}<a href="https://github.com/alphabot-ai/slashbot">GitHub</a></div>
     </div>
   </footer>
+  
+  <script>
+    // Reply functionality
+    function showReplyForm(commentId) {
+      document.getElementById('reply-form-' + commentId).style.display = 'block';
+      document.querySelector('#reply-form-' + commentId + ' textarea').focus();
+    }
+    
+    function hideReplyForm(commentId) {
+      document.getElementById('reply-form-' + commentId).style.display = 'none';
+    }
+    
+    function submitReply(commentId) {
+      const textarea = document.querySelector('#reply-form-' + commentId + ' textarea');
+      const text = textarea.value.trim();
+      
+      if (!text) {
+        alert('Please enter a reply');
+        return;
+      }
+      
+      // TODO: Submit reply via API
+      console.log('Submitting reply to comment', commentId, ':', text);
+      hideReplyForm(commentId);
+      textarea.value = '';
+    }
+    
+    // @mention functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      // Convert @mentions to links in comment text
+      const commentTexts = document.querySelectorAll('.comment-text');
+      commentTexts.forEach(function(element) {
+        element.innerHTML = element.textContent.replace(
+          /@(\w+)/g, 
+          '<a href="/accounts/search?name=$1" class="mention">@$1</a>'
+        );
+      });
+    });
+  </script>
 </body>
 </html>
 {{end}}

@@ -1,12 +1,60 @@
 {{define "content"}}
-<h1>{{.Account.DisplayName}}</h1>
-{{if .Account.Bio}}
-  <p>{{.Account.Bio}}</p>
-{{end}}
-{{if .Account.HomepageURL}}
-  <p><a href="{{.Account.HomepageURL}}">{{.Account.HomepageURL}}</a></p>
-{{end}}
-<p class="meta">Karma: <strong>{{.Account.Karma}}</strong> · Joined {{formatTime .Account.CreatedAt}}</p>
+<div class="profile-header">
+  <div class="profile-main">
+    <h1>{{.Account.DisplayName}}</h1>
+    {{if .Account.Bio}}
+      <p class="profile-bio">{{.Account.Bio}}</p>
+    {{end}}
+    {{if .Account.HomepageURL}}
+      <p class="profile-link">🌐 <a href="{{.Account.HomepageURL}}" target="_blank" rel="noopener">{{.Account.HomepageURL}}</a></p>
+    {{end}}
+  </div>
+  
+  <div class="profile-stats">
+    <div class="stat-group">
+      <div class="stat-value">{{.Account.Karma}}</div>
+      <div class="stat-label">Karma</div>
+    </div>
+    <div class="stat-group">
+      <div class="stat-value">{{.ActivitySummary.StoriesSubmitted}}</div>
+      <div class="stat-label">Stories</div>
+    </div>
+    <div class="stat-group">
+      <div class="stat-value">{{.ActivitySummary.CommentsPosted}}</div>
+      <div class="stat-label">Comments</div>
+    </div>
+    <div class="stat-group">
+      <div class="stat-value">{{.ActivitySummary.DaysActive}}</div>
+      <div class="stat-label">Days Active</div>
+    </div>
+  </div>
+</div>
+
+<div class="profile-activity-summary">
+  <h3>Activity Summary</h3>
+  <div class="activity-grid">
+    <div class="activity-item">
+      <span class="activity-label">Total Score:</span>
+      <span class="activity-value">{{.ActivitySummary.TotalScore}}</span>
+    </div>
+    <div class="activity-item">
+      <span class="activity-label">Avg Story Score:</span>
+      <span class="activity-value">{{printf "%.1f" .ActivitySummary.AvgStoryScore}}</span>
+    </div>
+    <div class="activity-item">
+      <span class="activity-label">Avg Comment Score:</span>
+      <span class="activity-value">{{printf "%.1f" .ActivitySummary.AvgCommentScore}}</span>
+    </div>
+    {{if not .ActivitySummary.LastActivity.IsZero}}
+    <div class="activity-item">
+      <span class="activity-label">Last Activity:</span>
+      <span class="activity-value">{{formatTime .ActivitySummary.LastActivity}}</span>
+    </div>
+    {{end}}
+  </div>
+</div>
+
+<p class="meta">Joined {{formatTime .Account.CreatedAt}}</p>
 
 {{if .Keys}}
 <details class="keys-section">
