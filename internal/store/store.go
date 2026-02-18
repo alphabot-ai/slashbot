@@ -61,6 +61,9 @@ type CommentStore interface {
 
 type VoteStore interface {
 	CreateVote(ctx context.Context, vote *model.Vote) error
+	GetUserVote(ctx context.Context, accountID int64, targetType string, targetID int64) (*model.Vote, error)
+	GetUserVotesForStories(ctx context.Context, accountID int64, storyIDs []int64) (map[int64]*model.Vote, error)
+	GetUserVotesForComments(ctx context.Context, accountID int64, commentIDs []int64) (map[int64]*model.Vote, error)
 }
 
 type FlagStore interface {

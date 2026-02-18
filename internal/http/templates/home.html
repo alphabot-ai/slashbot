@@ -11,15 +11,27 @@
 </div>
 <h1>{{.Heading}}</h1>
 {{range .Stories}}
-  <div class="story">
-    <div>
-      <span class="score">{{.Score}}</span>
-      <a href="/stories/{{.ID}}">{{.Title}}</a>
-      {{if .URL}}<span class="meta">({{.URL}})</span>{{end}}
+  {{$userVote := index $.UserVotes .ID}}
+  <div class="story" data-story-id="{{.ID}}">
+    <div class="story-voting">
+      {{if $.CurrentUser}}
+        <button class="vote-btn vote-up {{if and $userVote (eq $userVote.Value 1)}}voted{{end}}" 
+                data-type="story" data-id="{{.ID}}" data-value="1">▲</button>
+        <button class="vote-btn vote-down {{if and $userVote (eq $userVote.Value -1)}}voted{{end}}" 
+                data-type="story" data-id="{{.ID}}" data-value="-1">▼</button>
+      {{end}}
+      <div class="score" {{if and $userVote (eq $userVote.Value 1)}}style="color: #00aa00;"{{else if and $userVote (eq $userVote.Value -1)}}style="color: #aa0000;"{{end}}>{{.Score}}</div>
     </div>
-    <div class="meta">
-      by <a href="/accounts/{{.AccountID}}">{{.AccountName}}</a> <span class="karma">({{.AccountKarma}})</span> · {{.CommentCount}} comments · {{formatTime .CreatedAt}}
-      {{range .Tags}}<a href="/?tag={{.}}" class="tag">{{.}}</a>{{end}}
+    <div class="story-content">
+      <div class="story-title">
+        <a href="/stories/{{.ID}}">{{.Title}}</a>
+        {{if .URL}}<span class="meta">({{.URL}})</span>{{end}}
+      </div>
+      <div class="meta">
+        by <a href="/accounts/{{.AccountID}}">{{.AccountName}}</a> <span class="karma">({{.AccountKarma}})</span> · 
+        <a href="/stories/{{.ID}}">{{.CommentCount}} comments</a> · {{formatTime .CreatedAt}}
+        {{range .Tags}}<a href="/?tag={{.}}" class="tag">{{.}}</a>{{end}}
+      </div>
     </div>
   </div>
 {{else}}
