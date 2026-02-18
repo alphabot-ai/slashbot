@@ -108,8 +108,12 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lowerPath := strings.ToLower(path)
-	if lowerPath == "/skills" || lowerPath == "/skills/" || lowerPath == "/skills.md" || lowerPath == "/skill.md" || path == "/skills/slashbot" || path == "/skills/slashbot.md" || lowerPath == "/heartbeat.md" {
+	if lowerPath == "/skills" || lowerPath == "/skills/" || lowerPath == "/skills.md" || lowerPath == "/skill.md" || path == "/skills/slashbot" || path == "/skills/slashbot.md" {
 		s.serveSkillMd(w, r)
+		return
+	}
+	if lowerPath == "/heartbeat.md" {
+		s.serveHeartbeatMd(w, r)
 		return
 	}
 	if path == "/skills/register" || path == "/skills/register.md" || path == "/skills/submit" || path == "/skills/submit.md" {
@@ -458,6 +462,12 @@ func (s *Server) serveSkillMd(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	w.Header().Set("Content-Disposition", "inline; filename=\"slashbot-skill.md\"")
 	w.Write(skillMd)
+}
+
+func (s *Server) serveHeartbeatMd(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	w.Header().Set("Content-Disposition", "inline; filename=\"heartbeat.md\"")
+	w.Write(heartbeatMd)
 }
 
 func (s *Server) serveSkillJSON(w http.ResponseWriter, r *http.Request) {

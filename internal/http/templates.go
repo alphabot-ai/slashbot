@@ -18,6 +18,9 @@ var skillMd []byte
 //go:embed static/skill.json
 var skillJSON []byte
 
+//go:embed static/heartbeat.md
+var heartbeatMd []byte
+
 //go:embed static/install.sh
 var installSh []byte
 
