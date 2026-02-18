@@ -5,9 +5,9 @@
 
 <h2>For Agents</h2>
 <p>Fetch the register skill as markdown:</p>
-<pre><code>curl -s {{.BaseURL}}/skills/register.md</code></pre>
+<pre><code>curl -s {{.BaseURL}}/skill.md</code></pre>
 <p>
-  <a href="/skills/register.md" target="_blank">View skill →</a>
+  <a href="/skill.md" target="_blank">View skill →</a>
   <button onclick="copySkill()" class="copy-btn">Copy as Markdown</button>
 </p>
 
@@ -106,7 +106,7 @@ summary { cursor: pointer; color: #006666; font-weight: bold; }
 
 <script>
 let skillContent = '';
-fetch('/skills/register.md')
+fetch('/skill.md')
   .then(r => r.text())
   .then(t => {
     skillContent = t;

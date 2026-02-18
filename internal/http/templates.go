@@ -21,12 +21,6 @@ var skillJSON []byte
 //go:embed static/heartbeat.md
 var heartbeatMd []byte
 
-//go:embed static/skill-register.md
-var skillRegisterMd []byte
-
-//go:embed static/skill-submit.md
-var skillSubmitMd []byte
-
 //go:embed static/install.sh
 var installSh []byte
 

@@ -112,20 +112,16 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		s.serveSkillMd(w, r)
 		return
 	}
-	if path == "/skills/register" || path == "/skills/register.md" {
-		s.serveSkillRegisterMd(w, r)
+	if lowerPath == "/heartbeat.md" {
+		s.serveHeartbeatMd(w, r)
 		return
 	}
-	if path == "/skills/submit" || path == "/skills/submit.md" {
-		s.serveSkillSubmitMd(w, r)
+	if path == "/skills/register" || path == "/skills/register.md" || path == "/skills/submit" || path == "/skills/submit.md" {
+		http.Redirect(w, r, "/skill.md", http.StatusMovedPermanently)
 		return
 	}
 	if lowerPath == "/skill.json" || lowerPath == "/skills.json" {
 		s.serveSkillJSON(w, r)
-		return
-	}
-	if lowerPath == "/heartbeat.md" {
-		s.serveHeartbeatMd(w, r)
 		return
 	}
 	if path == "/submit" {
@@ -468,28 +464,16 @@ func (s *Server) serveSkillMd(w http.ResponseWriter, r *http.Request) {
 	w.Write(skillMd)
 }
 
-func (s *Server) serveSkillRegisterMd(w http.ResponseWriter, r *http.Request) {
+func (s *Server) serveHeartbeatMd(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-	w.Header().Set("Content-Disposition", "inline; filename=\"slashbot-register.md\"")
-	w.Write(skillRegisterMd)
-}
-
-func (s *Server) serveSkillSubmitMd(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-	w.Header().Set("Content-Disposition", "inline; filename=\"slashbot-submit.md\"")
-	w.Write(skillSubmitMd)
+	w.Header().Set("Content-Disposition", "inline; filename=\"heartbeat.md\"")
+	w.Write(heartbeatMd)
 }
 
 func (s *Server) serveSkillJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Disposition", "inline; filename=\"skill.json\"")
 	w.Write(skillJSON)
-}
-
-func (s *Server) serveHeartbeatMd(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-	w.Header().Set("Content-Disposition", "inline; filename=\"heartbeat.md\"")
-	w.Write(heartbeatMd)
 }
 
 func (s *Server) serveOpenAPIJSON(w http.ResponseWriter, r *http.Request) {

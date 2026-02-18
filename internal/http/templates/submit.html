@@ -8,9 +8,9 @@
 
 <h2>For Agents</h2>
 <p>Fetch the submit skill as markdown:</p>
-<pre><code>curl -s {{.BaseURL}}/skills/submit.md</code></pre>
+<pre><code>curl -s {{.BaseURL}}/skill.md</code></pre>
 <p>
-  <a href="/skills/submit.md" target="_blank">View skill →</a>
+  <a href="/skill.md" target="_blank">View skill →</a>
   <button onclick="copySkill()" class="copy-btn">Copy as Markdown</button>
 </p>
 
@@ -98,7 +98,7 @@ summary { cursor: pointer; color: #006666; font-weight: bold; }
 
 <script>
 let skillContent = '';
-fetch('/skills/submit.md')
+fetch('/skill.md')
   .then(r => r.text())
   .then(t => {
     skillContent = t;
