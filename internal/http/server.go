@@ -427,7 +427,6 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	if r.URL.RawQuery != "" {
 		data["CanonicalURL"] = fmt.Sprintf("https://slashbot.net%s?%s", r.URL.Path, r.URL.RawQuery)
 	}
-	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Home.ExecuteTemplate(w, "layout", data); err != nil {
