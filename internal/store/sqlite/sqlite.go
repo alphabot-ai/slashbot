@@ -211,61 +211,81 @@ func (s *Store) ListStories(ctx context.Context, opts store.StoryListOpts) ([]mo
 		sortBy = "top"
 	}
 
-	tagFilter := ""
-	var tagArgs []any
+	// Build WHERE clauses and arguments
+	var whereClauses []string
+	var args []interface{}
+	
+	whereClauses = append(whereClauses, "s.hidden = 0")
+
+	// Tag filter
 	if opts.Tag != "" {
-		tagFilter = ` AND s.tags LIKE ?`
-		tagArgs = append(tagArgs, `%"`+opts.Tag+`"%`)
+		whereClauses = append(whereClauses, "s.tags LIKE ?")
+		args = append(args, `%"`+opts.Tag+`"%`)
 	}
 
-	var rows *sql.Rows
-	var err error
+	// Time range filter
+	if opts.TimeRange != "" && opts.TimeRange != "all" {
+		var since time.Time
+		now := time.Now().UTC()
+		
+		switch opts.TimeRange {
+		case "today":
+			since = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+		case "week":
+			since = now.AddDate(0, 0, -7)
+		case "month":
+			since = now.AddDate(0, -1, 0)
+		}
+		
+		if !since.IsZero() {
+			whereClauses = append(whereClauses, "s.created_at >= ?")
+			args = append(args, since.Unix())
+		}
+	}
 
+	// Account filter for "my posts"
+	if opts.AccountID != nil {
+		whereClauses = append(whereClauses, "s.account_id = ?")
+		args = append(args, *opts.AccountID)
+	}
+
+	// Cursor pagination for "new" sort
+	if sortBy == "new" && opts.Cursor > 0 {
+		whereClauses = append(whereClauses, "s.created_at < ?")
+		args = append(args, opts.Cursor)
+	}
+
+	whereClause := "WHERE " + strings.Join(whereClauses, " AND ")
+
+	// Build ORDER BY clause
+	var orderBy string
 	switch sortBy {
 	case "new":
-		if opts.Cursor > 0 {
-			args := []any{opts.Cursor}
-			args = append(args, tagArgs...)
-			args = append(args, limit)
-			rows, err = s.db.QueryContext(ctx, `
-SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
-FROM stories s
-LEFT JOIN accounts a ON a.id = s.account_id
-WHERE s.hidden = 0 AND s.created_at < ?`+tagFilter+`
-ORDER BY s.created_at DESC
-LIMIT ?
-`, args...)
-		} else {
-			args := append(tagArgs, limit)
-			rows, err = s.db.QueryContext(ctx, `
-SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
-FROM stories s
-LEFT JOIN accounts a ON a.id = s.account_id
-WHERE s.hidden = 0`+tagFilter+`
-ORDER BY s.created_at DESC
-LIMIT ?
-`, args...)
-		}
+		orderBy = "ORDER BY s.created_at DESC"
 	case "discussed":
-		args := append(tagArgs, limit)
-		rows, err = s.db.QueryContext(ctx, `
-SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
-FROM stories s
-LEFT JOIN accounts a ON a.id = s.account_id
-WHERE s.hidden = 0`+tagFilter+`
-ORDER BY s.comment_count DESC, s.created_at DESC
-LIMIT ?
-`, args...)
+		orderBy = "ORDER BY s.comment_count DESC, s.created_at DESC"
+	case "top":
+		orderBy = "ORDER BY s.created_at DESC"
 	default:
-		rows, err = s.db.QueryContext(ctx, `
+		orderBy = "ORDER BY s.created_at DESC"
+	}
+
+	// Add limit
+	args = append(args, limit)
+	if sortBy == "top" {
+		// For top sorting, we need more stories to rank by score
+		args[len(args)-1] = 500
+	}
+
+	query := `
 SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
-WHERE s.hidden = 0`+tagFilter+`
-ORDER BY s.created_at DESC
-LIMIT 500
-`, tagArgs...)
-	}
+` + whereClause + `
+` + orderBy + `
+LIMIT ?`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -433,6 +453,82 @@ WHERE c.account_id = ? AND c.hidden = 0
 ORDER BY c.created_at DESC
 LIMIT ?
 `, accountID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []model.Comment
+	for rows.Next() {
+		var c model.Comment
+		var parentID sql.NullInt64
+		var created int64
+		var hidden int
+		var accountName sql.NullString
+		var accountKarma sql.NullInt64
+		var storyTitle sql.NullString
+		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName, &accountKarma, &storyTitle); err != nil {
+			return nil, err
+		}
+		if parentID.Valid {
+			pid := parentID.Int64
+			c.ParentID = &pid
+		}
+		if accountName.Valid {
+			c.AccountName = accountName.String
+		}
+		c.AccountKarma = int(accountKarma.Int64)
+		if storyTitle.Valid {
+			c.StoryTitle = storyTitle.String
+		}
+		c.CreatedAt = time.Unix(created, 0)
+		c.Hidden = hidden == 1
+		comments = append(comments, c)
+	}
+	return comments, rows.Err()
+}
+
+func (s *Store) ListComments(ctx context.Context, opts store.CommentListOpts) ([]model.Comment, error) {
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+
+	var whereClauses []string
+	var args []interface{}
+	
+	whereClauses = append(whereClauses, "c.hidden = 0")
+
+	// Account filter for "my comments"
+	if opts.AccountID != nil {
+		whereClauses = append(whereClauses, "c.account_id = ?")
+		args = append(args, *opts.AccountID)
+	}
+
+	whereClause := "WHERE " + strings.Join(whereClauses, " AND ")
+
+	// Build ORDER BY clause
+	var orderBy string
+	switch opts.Sort {
+	case "top":
+		orderBy = "ORDER BY c.score DESC, c.created_at DESC"
+	default:
+		orderBy = "ORDER BY c.created_at DESC"
+	}
+
+	// Add limit
+	args = append(args, limit)
+
+	query := `
+SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name, a.karma, s.title
+FROM comments c
+LEFT JOIN accounts a ON a.id = c.account_id
+LEFT JOIN stories s ON s.id = c.story_id
+` + whereClause + `
+` + orderBy + `
+LIMIT ?`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

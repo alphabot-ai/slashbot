@@ -269,23 +269,68 @@ func (s *Server) baseTemplateData(ctx context.Context, title string) map[string]
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
 	tag := r.URL.Query().Get("tag")
+	timeRange := r.URL.Query().Get("time")
 	limit := parseIntDefault(r.URL.Query().Get("limit"), 30)
 	cursor := parseInt64Default(r.URL.Query().Get("cursor"), 0)
+	
+	var accountID *int64
+	myView := r.URL.Query().Get("my")
+	// TODO: Add authentication for "My Posts" and "My Comments" when auth is available
 
-	stories, err := s.store.ListStories(r.Context(), store.StoryListOpts{Sort: sort, Limit: limit, Cursor: cursor, Tag: tag})
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
+	var stories []model.Story
+	var comments []model.Comment
+	
+	var err error
+	
+	if myView == "comments" && accountID != nil {
+		// Fetch comments instead of stories
+		comments, err = s.store.ListComments(r.Context(), store.CommentListOpts{
+			Sort:      sortOrDefault(sort),
+			AccountID: accountID,
+			Limit:     limit,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+	} else {
+		// Fetch stories (default behavior)
+		stories, err = s.store.ListStories(r.Context(), store.StoryListOpts{
+			Sort:      sort,
+			Limit:     limit,
+			Cursor:    cursor,
+			Tag:       tag,
+			TimeRange: timeRange,
+			AccountID: accountID,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	if wantsJSON(r) {
 		resp := map[string]any{
-			"stories": stories,
-			"sort":    sortOrDefault(sort),
-			"cursor":  nextCursorStories(stories),
+			"sort": sortOrDefault(sort),
+		}
+		if myView == "comments" {
+			resp["comments"] = comments
+		} else {
+			resp["stories"] = stories
+			resp["cursor"] = nextCursorStories(stories)
 		}
 		if tag != "" {
 			resp["tag"] = tag
+		}
+		if timeRange != "" {
+			resp["time_range"] = timeRange
+		}
+		if accountID != nil {
+			if myView == "comments" {
+				resp["account_filter"] = "my_comments"
+			} else {
+				resp["account_filter"] = "my_posts"
+			}
 		}
 		writeJSON(w, http.StatusOK, resp)
 		return
@@ -298,14 +343,40 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	case "discussed":
 		heading = "Discussed"
 	}
-	if tag != "" {
+	if accountID != nil {
+		if myView == "comments" {
+			heading = "My Comments"
+		} else {
+			heading = "My Posts"
+		}
+	} else if tag != "" {
 		heading = "Tagged: " + tag
+	}
+	
+	// Add time range to heading
+	if timeRange != "" {
+		switch timeRange {
+		case "today":
+			heading += " Today"
+		case "week":
+			heading += " This Week"  
+		case "month":
+			heading += " This Month"
+		}
 	}
 
 	data := s.baseTemplateData(r.Context(), "Slashbot")
 	data["Heading"] = heading
 	data["Stories"] = stories
+	data["Comments"] = comments
 	data["Tag"] = tag
+	data["Sort"] = sortOrDefault(sort)
+	data["TimeRange"] = timeRange
+	data["MyView"] = myView
+	data["ShowMyPosts"] = accountID != nil && myView == "posts"
+	data["ShowMyComments"] = accountID != nil && myView == "comments"
+
+	// Vote state handling will be added when voting feature is merged
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Home.ExecuteTemplate(w, "layout", data); err != nil {
