@@ -482,6 +482,110 @@ VALUES (?, ?, ?, ?, ?)
 	return nil
 }
 
+func (s *Store) GetUserVote(ctx context.Context, accountID int64, targetType string, targetID int64) (*model.Vote, error) {
+	var vote model.Vote
+	var createdAt int64
+	
+	err := s.db.QueryRowContext(ctx, `
+SELECT id, target_type, target_id, value, created_at, account_id
+FROM votes 
+WHERE account_id = ? AND target_type = ? AND target_id = ?
+`, accountID, targetType, targetID).Scan(
+		&vote.ID, &vote.TargetType, &vote.TargetID, &vote.Value, &createdAt, &vote.AccountID)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, store.ErrNotFound
+		}
+		return nil, err
+	}
+	
+	vote.CreatedAt = time.Unix(createdAt, 0)
+	return &vote, nil
+}
+
+func (s *Store) GetUserVotesForStories(ctx context.Context, accountID int64, storyIDs []int64) (map[int64]*model.Vote, error) {
+	if len(storyIDs) == 0 {
+		return make(map[int64]*model.Vote), nil
+	}
+	
+	votes := make(map[int64]*model.Vote)
+	placeholders := strings.Repeat("?,", len(storyIDs)-1) + "?"
+	args := make([]interface{}, len(storyIDs)+1)
+	args[0] = accountID
+	for i, id := range storyIDs {
+		args[i+1] = id
+	}
+	
+	query := fmt.Sprintf(`
+SELECT id, target_type, target_id, value, created_at, account_id
+FROM votes 
+WHERE account_id = ? AND target_type = 'story' AND target_id IN (%s)
+`, placeholders)
+	
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	for rows.Next() {
+		var vote model.Vote
+		var createdAt int64
+		
+		err := rows.Scan(&vote.ID, &vote.TargetType, &vote.TargetID, &vote.Value, &createdAt, &vote.AccountID)
+		if err != nil {
+			return nil, err
+		}
+		
+		vote.CreatedAt = time.Unix(createdAt, 0)
+		votes[vote.TargetID] = &vote
+	}
+	
+	return votes, rows.Err()
+}
+
+func (s *Store) GetUserVotesForComments(ctx context.Context, accountID int64, commentIDs []int64) (map[int64]*model.Vote, error) {
+	if len(commentIDs) == 0 {
+		return make(map[int64]*model.Vote), nil
+	}
+	
+	votes := make(map[int64]*model.Vote)
+	placeholders := strings.Repeat("?,", len(commentIDs)-1) + "?"
+	args := make([]interface{}, len(commentIDs)+1)
+	args[0] = accountID
+	for i, id := range commentIDs {
+		args[i+1] = id
+	}
+	
+	query := fmt.Sprintf(`
+SELECT id, target_type, target_id, value, created_at, account_id
+FROM votes 
+WHERE account_id = ? AND target_type = 'comment' AND target_id IN (%s)
+`, placeholders)
+	
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	for rows.Next() {
+		var vote model.Vote
+		var createdAt int64
+		
+		err := rows.Scan(&vote.ID, &vote.TargetType, &vote.TargetID, &vote.Value, &createdAt, &vote.AccountID)
+		if err != nil {
+			return nil, err
+		}
+		
+		vote.CreatedAt = time.Unix(createdAt, 0)
+		votes[vote.TargetID] = &vote
+	}
+	
+	return votes, rows.Err()
+}
+
 func (s *Store) CreateFlag(ctx context.Context, flag *model.Flag) error {
 	_, err := s.db.ExecContext(ctx, `
 INSERT INTO flags (target_type, target_id, reason, created_at, account_id)

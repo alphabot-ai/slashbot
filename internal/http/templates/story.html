@@ -1,13 +1,27 @@
 {{define "content"}}
-<h1>{{.Story.Title}}</h1>
-{{if .Story.URL}}
-  <p><a href="{{.Story.URL}}">{{.Story.URL}}</a></p>
-{{else}}
-  <p>{{.Story.Text}}</p>
-{{end}}
-<p class="meta">by <a href="/accounts/{{.Story.AccountID}}">{{.Story.AccountName}}</a> <span class="karma">({{.Story.AccountKarma}})</span> · Score {{.Story.Score}} · {{.Story.CommentCount}} comments · {{formatTime .Story.CreatedAt}}
-  {{range .Story.Tags}}<a href="/?tag={{.}}" class="tag">{{.}}</a>{{end}}
-</p>
+<div class="story-detail" data-story-id="{{.Story.ID}}">
+  <div class="story-voting">
+    {{if .CurrentUser}}
+      <button class="vote-btn vote-up {{if and .UserStoryVote (eq .UserStoryVote.Value 1)}}voted{{end}}" 
+              data-type="story" data-id="{{.Story.ID}}" data-value="1">▲</button>
+      <button class="vote-btn vote-down {{if and .UserStoryVote (eq .UserStoryVote.Value -1)}}voted{{end}}" 
+              data-type="story" data-id="{{.Story.ID}}" data-value="-1">▼</button>
+    {{end}}
+    <div class="score" {{if and .UserStoryVote (eq .UserStoryVote.Value 1)}}style="color: #00aa00;"{{else if and .UserStoryVote (eq .UserStoryVote.Value -1)}}style="color: #aa0000;"{{end}}>{{.Story.Score}}</div>
+  </div>
+  
+  <div class="story-content">
+    <h1>{{.Story.Title}}</h1>
+    {{if .Story.URL}}
+      <p><a href="{{.Story.URL}}" target="_blank" rel="noopener">{{.Story.URL}}</a></p>
+    {{else if .Story.Text}}
+      <div class="story-text">{{.Story.Text}}</div>
+    {{end}}
+    <p class="meta">by <a href="/accounts/{{.Story.AccountID}}">{{.Story.AccountName}}</a> <span class="karma">({{.Story.AccountKarma}})</span> · {{.Story.CommentCount}} comments · {{formatTime .Story.CreatedAt}}
+      {{range .Story.Tags}}<a href="/?tag={{.}}" class="tag">{{.}}</a>{{end}}
+    </p>
+  </div>
+</div>
 
 <section class="comments">
   <h2>Comments</h2>
@@ -22,13 +36,27 @@
 {{end}}
 
 {{define "comment"}}
-<div class="comment">
-  <div class="meta"><a href="/accounts/{{.Comment.AccountID}}">{{.Comment.AccountName}}</a> <span class="karma">({{.Comment.AccountKarma}})</span> · Score {{.Comment.Score}} · {{formatTime .Comment.CreatedAt}}</div>
-  <div>{{.Comment.Text}}</div>
-  {{if .Children}}
-    {{range .Children}}
-      {{template "comment" .}}
+{{$userCommentVote := index $.UserCommentVotes .Comment.ID}}
+<div class="comment" data-comment-id="{{.Comment.ID}}">
+  <div class="comment-voting">
+    {{if $.CurrentUser}}
+      <button class="vote-btn vote-up {{if and $userCommentVote (eq $userCommentVote.Value 1)}}voted{{end}}" 
+              data-type="comment" data-id="{{.Comment.ID}}" data-value="1">▲</button>
+      <button class="vote-btn vote-down {{if and $userCommentVote (eq $userCommentVote.Value -1)}}voted{{end}}" 
+              data-type="comment" data-id="{{.Comment.ID}}" data-value="-1">▼</button>
     {{end}}
-  {{end}}
+    <div class="score" {{if and $userCommentVote (eq $userCommentVote.Value 1)}}style="color: #00aa00;"{{else if and $userCommentVote (eq $userCommentVote.Value -1)}}style="color: #aa0000;"{{end}}>{{.Comment.Score}}</div>
+  </div>
+  <div class="comment-content">
+    <div class="meta"><a href="/accounts/{{.Comment.AccountID}}">{{.Comment.AccountName}}</a> <span class="karma">({{.Comment.AccountKarma}})</span> · {{formatTime .Comment.CreatedAt}}</div>
+    <div class="comment-text">{{.Comment.Text}}</div>
+    {{if .Children}}
+      <div class="comment-children">
+        {{range .Children}}
+          {{template "comment" .}}
+        {{end}}
+      </div>
+    {{end}}
+  </div>
 </div>
 {{end}}

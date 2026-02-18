@@ -266,6 +266,20 @@ func (s *Server) baseTemplateData(ctx context.Context, title string) map[string]
 	return data
 }
 
+func (s *Server) baseTemplateDataWithAuth(ctx context.Context, r *http.Request, title string) map[string]any {
+	data := s.baseTemplateData(ctx, title)
+	
+	// Add current user info if authenticated
+	verified := s.optionalAuth(r)
+	if verified != nil && verified.AccountID != nil {
+		if account, err := s.store.GetAccount(ctx, *verified.AccountID); err == nil {
+			data["CurrentUser"] = account
+		}
+	}
+	
+	return data
+}
+
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
 	tag := r.URL.Query().Get("tag")
@@ -302,10 +316,23 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		heading = "Tagged: " + tag
 	}
 
-	data := s.baseTemplateData(r.Context(), "Slashbot")
+	data := s.baseTemplateDataWithAuth(r.Context(), r, "Slashbot")
 	data["Heading"] = heading
 	data["Stories"] = stories
 	data["Tag"] = tag
+
+	// Get user vote state if authenticated
+	verified := s.optionalAuth(r)
+	if verified != nil && verified.AccountID != nil && len(stories) > 0 {
+		storyIDs := make([]int64, len(stories))
+		for i, story := range stories {
+			storyIDs[i] = story.ID
+		}
+		votes, err := s.store.GetUserVotesForStories(r.Context(), *verified.AccountID, storyIDs)
+		if err == nil {
+			data["UserVotes"] = votes
+		}
+	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Home.ExecuteTemplate(w, "layout", data); err != nil {
@@ -344,9 +371,29 @@ func (s *Server) handleStoryPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := s.baseTemplateData(r.Context(), story.Title)
+	data := s.baseTemplateDataWithAuth(r.Context(), r, story.Title)
 	data["Story"] = story
 	data["Comments"] = commentTree
+
+	// Get user vote state if authenticated
+	verified := s.optionalAuth(r)
+	if verified != nil && verified.AccountID != nil {
+		// Get story vote
+		if storyVote, err := s.store.GetUserVote(r.Context(), *verified.AccountID, "story", story.ID); err == nil {
+			data["UserStoryVote"] = storyVote
+		}
+		
+		// Get comment votes if there are comments
+		if len(comments) > 0 {
+			commentIDs := make([]int64, len(comments))
+			for i, comment := range comments {
+				commentIDs[i] = comment.ID
+			}
+			if commentVotes, err := s.store.GetUserVotesForComments(r.Context(), *verified.AccountID, commentIDs); err == nil {
+				data["UserCommentVotes"] = commentVotes
+			}
+		}
+	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Story.ExecuteTemplate(w, "layout", data); err != nil {
@@ -1694,6 +1741,19 @@ func (s *Server) allowRateLimit(w http.ResponseWriter, r *http.Request, action s
 		}
 	}
 	return true
+}
+
+func (s *Server) optionalAuth(r *http.Request) *auth.Verified {
+	authHeader := r.Header.Get("Authorization")
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		return nil
+	}
+	bearer := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+	verified, err := s.auth.Authenticate(r.Context(), bearer)
+	if err != nil {
+		return nil
+	}
+	return &verified
 }
 
 func (s *Server) requireAuth(w http.ResponseWriter, r *http.Request) (auth.Verified, bool) {

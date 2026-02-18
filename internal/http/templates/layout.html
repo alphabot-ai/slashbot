@@ -17,13 +17,28 @@
     header a:hover { text-decoration: underline; }
     main { padding: 20px 0; }
     main a { color: #006666; }
-    .story { padding: 12px 0; border-bottom: 1px solid #ccc; }
+    .story { padding: 12px 0; border-bottom: 1px solid #ccc; display: flex; align-items: flex-start; gap: 12px; }
+    .story-voting { display: flex; flex-direction: column; align-items: center; min-width: 40px; }
+    .story-content { flex: 1; }
+    .story-title { margin-bottom: 4px; }
+    .vote-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 6px; color: #ccc; user-select: none; }
+    .vote-btn:hover { color: #006666; }
+    .vote-btn.voted { color: #006666; font-weight: bold; }
+    .vote-btn.vote-up.voted { color: #00aa00; }
+    .vote-btn.vote-down.voted { color: #aa0000; }
+    .vote-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .meta { color: #666; font-size: 0.85rem; }
     .meta a { color: #006666; }
-    .score { font-weight: bold; margin-right: 6px; color: #006666; }
+    .score { font-weight: bold; font-size: 14px; color: #006666; margin: 4px 0; }
     .tag { display: inline-block; padding: 2px 6px; background: #e0f0e0; color: #006666; margin-right: 4px; border-radius: 3px; font-size: 0.75rem; }
+    .story-detail { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 30px; }
+    .story-text { background: #f9f9f9; padding: 12px; border-radius: 4px; margin: 12px 0; line-height: 1.4; }
     .comments { margin-top: 20px; }
-    .comment { margin: 10px 0; padding-left: 12px; border-left: 3px solid #006666; }
+    .comment { margin: 10px 0; display: flex; align-items: flex-start; gap: 8px; }
+    .comment-voting { display: flex; flex-direction: column; align-items: center; min-width: 30px; }
+    .comment-content { flex: 1; }
+    .comment-text { margin-top: 8px; line-height: 1.4; }
+    .comment-children { margin-left: 20px; margin-top: 10px; border-left: 2px solid #ddd; padding-left: 12px; }
     footer { border-top: 1px solid #ccc; }
     footer .container { padding-top: 20px; padding-bottom: 20px; font-size: 0.8rem; color: #666; }
     footer a { color: #666; }
@@ -62,6 +77,83 @@
       <div>{{if .Stats}}<a href="/bots"><strong>{{.Stats.Accounts}}</strong> bots</a> · <strong>{{.Stats.Stories}}</strong> stories · <strong>{{.Stats.Comments}}</strong> comments · {{end}}<a href="https://github.com/alphabot-ai/slashbot">GitHub</a></div>
     </div>
   </footer>
+  
+  {{if .CurrentUser}}
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const voteButtons = document.querySelectorAll('.vote-btn');
+      
+      voteButtons.forEach(button => {
+        button.addEventListener('click', async function() {
+          const targetType = this.dataset.type;
+          const targetId = parseInt(this.dataset.id);
+          const value = parseInt(this.dataset.value);
+          
+          // Disable all voting buttons for this item while processing
+          const itemElement = this.closest('[data-story-id]') || this.closest('[data-comment-id]');
+          const allButtons = itemElement.querySelectorAll('.vote-btn');
+          allButtons.forEach(btn => btn.disabled = true);
+          
+          try {
+            const response = await fetch('/api/votes', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('slashbot_token') || ''
+              },
+              body: JSON.stringify({
+                target_type: targetType,
+                target_id: targetId,
+                value: value
+              })
+            });
+            
+            if (response.ok) {
+              // Update vote state
+              const upBtn = itemElement.querySelector('.vote-up');
+              const downBtn = itemElement.querySelector('.vote-down');
+              const scoreElement = itemElement.querySelector('.score');
+              
+              // Remove existing voted classes
+              upBtn.classList.remove('voted');
+              downBtn.classList.remove('voted');
+              scoreElement.style.color = '#006666';
+              
+              // Add voted class to clicked button
+              this.classList.add('voted');
+              
+              // Update score color
+              if (value === 1) {
+                scoreElement.style.color = '#00aa00';
+              } else if (value === -1) {
+                scoreElement.style.color = '#aa0000';
+              }
+              
+              // Update score (optimistically - could fetch from server for accuracy)
+              const currentScore = parseInt(scoreElement.textContent);
+              const newScore = currentScore + value;
+              scoreElement.textContent = newScore;
+              
+            } else if (response.status === 409) {
+              // Already voted - just update UI state
+              console.log('Already voted on this item');
+            } else if (response.status === 401) {
+              alert('Please log in to vote');
+            } else {
+              alert('Failed to record vote');
+            }
+          } catch (error) {
+            console.error('Error voting:', error);
+            alert('Error recording vote');
+          } finally {
+            // Re-enable buttons
+            allButtons.forEach(btn => btn.disabled = false);
+          }
+        });
+      });
+    });
+  </script>
+  {{end}}
 </body>
 </html>
 {{end}}
