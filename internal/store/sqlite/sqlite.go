@@ -1199,6 +1199,147 @@ func scanStory(scanner interface{ Scan(dest ...any) error }) (model.Story, error
 	return s, nil
 }
 
+func (s *Store) GetAccountActivitySummary(ctx context.Context, accountID int64) (model.ActivitySummary, error) {
+	var summary model.ActivitySummary
+	
+	// Get story stats
+	row := s.db.QueryRowContext(ctx, `
+SELECT 
+	COUNT(*) as story_count,
+	COALESCE(SUM(score), 0) as total_story_score,
+	COALESCE(AVG(score), 0) as avg_story_score
+FROM stories 
+WHERE account_id = ? AND hidden = 0
+`, accountID)
+	
+	var storyCount int
+	var totalStoryScore int
+	var avgStoryScore float64
+	
+	if err := row.Scan(&storyCount, &totalStoryScore, &avgStoryScore); err != nil {
+		return summary, err
+	}
+	
+	// Get comment stats
+	row = s.db.QueryRowContext(ctx, `
+SELECT 
+	COUNT(*) as comment_count,
+	COALESCE(SUM(score), 0) as total_comment_score,
+	COALESCE(AVG(score), 0) as avg_comment_score
+FROM comments 
+WHERE account_id = ? AND hidden = 0
+`, accountID)
+	
+	var commentCount int
+	var totalCommentScore int
+	var avgCommentScore float64
+	
+	if err := row.Scan(&commentCount, &totalCommentScore, &avgCommentScore); err != nil {
+		return summary, err
+	}
+	
+	// Get activity timeline
+	row = s.db.QueryRowContext(ctx, `
+SELECT 
+	MAX(created_at) as last_activity,
+	COUNT(DISTINCT DATE(created_at, 'unixepoch')) as active_days
+FROM (
+	SELECT created_at FROM stories WHERE account_id = ? AND hidden = 0
+	UNION ALL
+	SELECT created_at FROM comments WHERE account_id = ? AND hidden = 0
+)
+`, accountID, accountID)
+	
+	var lastActivityUnix sql.NullInt64
+	var activeDays int
+	
+	if err := row.Scan(&lastActivityUnix, &activeDays); err != nil {
+		return summary, err
+	}
+	
+	summary.StoriesSubmitted = storyCount
+	summary.CommentsPosted = commentCount
+	summary.TotalScore = totalStoryScore + totalCommentScore
+	summary.AvgStoryScore = avgStoryScore
+	summary.AvgCommentScore = avgCommentScore
+	summary.DaysActive = activeDays
+	
+	if lastActivityUnix.Valid {
+		summary.LastActivity = time.Unix(lastActivityUnix.Int64, 0)
+	}
+	
+	return summary, nil
+}
+
+func (s *Store) GetRecentlyActiveUsers(ctx context.Context, limit int) ([]model.UserActivity, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	
+	query := `
+SELECT 
+	a.id,
+	a.display_name,
+	a.karma,
+	COALESCE(activity.last_activity, 0) as last_activity,
+	COALESCE(activity.recent_stories, 0) as recent_stories,
+	COALESCE(activity.recent_comments, 0) as recent_comments
+FROM accounts a
+LEFT JOIN (
+	SELECT 
+		account_id,
+		MAX(created_at) as last_activity,
+		SUM(CASE WHEN type = 'story' THEN 1 ELSE 0 END) as recent_stories,
+		SUM(CASE WHEN type = 'comment' THEN 1 ELSE 0 END) as recent_comments
+	FROM (
+		SELECT account_id, created_at, 'story' as type 
+		FROM stories 
+		WHERE hidden = 0 AND created_at > ? 
+		UNION ALL
+		SELECT account_id, created_at, 'comment' as type 
+		FROM comments 
+		WHERE hidden = 0 AND created_at > ?
+	)
+	GROUP BY account_id
+) activity ON a.id = activity.account_id
+WHERE activity.last_activity IS NOT NULL
+ORDER BY activity.last_activity DESC
+LIMIT ?
+`
+
+	// Get activity from the last 30 days
+	thirtyDaysAgo := time.Now().AddDate(0, 0, -30).Unix()
+	
+	rows, err := s.db.QueryContext(ctx, query, thirtyDaysAgo, thirtyDaysAgo, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var users []model.UserActivity
+	for rows.Next() {
+		var user model.UserActivity
+		var lastActivityUnix int64
+		
+		err := rows.Scan(
+			&user.AccountID,
+			&user.DisplayName,
+			&user.Karma,
+			&lastActivityUnix,
+			&user.RecentStories,
+			&user.RecentComments,
+		)
+		if err != nil {
+			return nil, err
+		}
+		
+		user.LastActivity = time.Unix(lastActivityUnix, 0)
+		users = append(users, user)
+	}
+	
+	return users, rows.Err()
+}
+
 func rankScore(story model.Story, now time.Time) float64 {
 	hours := now.Sub(story.CreatedAt).Hours()
 	return float64(story.Score) / pow(hours+2, 1.5)

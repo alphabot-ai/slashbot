@@ -90,6 +90,8 @@ type AccountStore interface {
 	GetAccountKey(ctx context.Context, keyID int64) (model.AccountKey, error)
 	DeleteAccount(ctx context.Context, accountID int64) error
 	RenameAccount(ctx context.Context, accountID int64, newName string) error
+	GetAccountActivitySummary(ctx context.Context, accountID int64) (model.ActivitySummary, error)
+	GetRecentlyActiveUsers(ctx context.Context, limit int) ([]model.UserActivity, error)
 }
 
 type AuthStore interface {

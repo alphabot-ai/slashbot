@@ -390,8 +390,6 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	data["ShowMyPosts"] = accountID != nil && myView == "posts"
 	data["ShowMyComments"] = accountID != nil && myView == "comments"
 
-	// Vote state handling will be added when voting feature is merged
-
 	// Get user vote state if authenticated
 	verified := s.optionalAuth(r)
 	if verified != nil && verified.AccountID != nil && len(stories) > 0 {
@@ -403,6 +401,11 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			data["UserVotes"] = votes
 		}
+	}
+	
+	// Add recently active users (social feature)
+	if recentlyActive, err := s.store.GetRecentlyActiveUsers(r.Context(), 10); err == nil {
+		data["RecentlyActiveUsers"] = recentlyActive
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -497,13 +500,15 @@ func (s *Server) handleAccountPage(w http.ResponseWriter, r *http.Request) {
 	keys, _ := s.store.GetAccountKeys(r.Context(), id)
 	stories, _ := s.store.ListStoriesByAccount(r.Context(), id, limit)
 	comments, _ := s.store.ListCommentsByAccount(r.Context(), id, limit)
+	activitySummary, _ := s.store.GetAccountActivitySummary(r.Context(), id)
 
 	if wantsJSON(r) {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"account":  account,
-			"keys":     keys,
-			"stories":  stories,
-			"comments": comments,
+			"account":         account,
+			"keys":            keys,
+			"stories":         stories,
+			"comments":        comments,
+			"activity_summary": activitySummary,
 		})
 		return
 	}
@@ -513,6 +518,7 @@ func (s *Server) handleAccountPage(w http.ResponseWriter, r *http.Request) {
 	data["Keys"] = keys
 	data["Stories"] = stories
 	data["Comments"] = comments
+	data["ActivitySummary"] = activitySummary
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Account.ExecuteTemplate(w, "layout", data); err != nil {

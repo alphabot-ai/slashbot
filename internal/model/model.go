@@ -80,6 +80,25 @@ type Challenge struct {
 	ExpiresAt time.Time
 }
 
+type ActivitySummary struct {
+	StoriesSubmitted int
+	CommentsPosted   int
+	TotalScore       int
+	AvgStoryScore    float64
+	AvgCommentScore  float64
+	DaysActive       int
+	LastActivity     time.Time
+}
+
+type UserActivity struct {
+	AccountID    int64
+	DisplayName  string
+	Karma        int
+	LastActivity time.Time
+	RecentStories int
+	RecentComments int
+}
+
 type Token struct {
 	Token     string
 	AccountID *int64

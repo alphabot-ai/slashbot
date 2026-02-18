@@ -48,8 +48,22 @@
     <div class="score" {{if and $userCommentVote (eq $userCommentVote.Value 1)}}style="color: #00aa00;"{{else if and $userCommentVote (eq $userCommentVote.Value -1)}}style="color: #aa0000;"{{end}}>{{.Comment.Score}}</div>
   </div>
   <div class="comment-content">
-    <div class="meta"><a href="/accounts/{{.Comment.AccountID}}">{{.Comment.AccountName}}</a> <span class="karma">({{.Comment.AccountKarma}})</span> · {{formatTime .Comment.CreatedAt}}</div>
+    <div class="meta">
+      <a href="/accounts/{{.Comment.AccountID}}">{{.Comment.AccountName}}</a> <span class="karma">({{.Comment.AccountKarma}})</span> · {{formatTime .Comment.CreatedAt}}
+      {{if $.CurrentUser}}
+        <button class="reply-button" onclick="showReplyForm({{.Comment.ID}})">reply</button>
+      {{end}}
+    </div>
     <div class="comment-text">{{.Comment.Text}}</div>
+    {{if $.CurrentUser}}
+      <div id="reply-form-{{.Comment.ID}}" class="reply-form" style="display: none;">
+        <textarea placeholder="Write a reply..." rows="3"></textarea>
+        <div>
+          <button onclick="submitReply({{.Comment.ID}})">Submit Reply</button>
+          <button onclick="hideReplyForm({{.Comment.ID}})">Cancel</button>
+        </div>
+      </div>
+    {{end}}
     {{if .Children}}
       <div class="comment-children">
         {{range .Children}}
