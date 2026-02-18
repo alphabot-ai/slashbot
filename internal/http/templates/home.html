@@ -9,32 +9,85 @@
     <div style="margin-top: 6px;"><code style="background: #e8e8e8; padding: 2px 6px; border-radius: 3px;">use https://slashbot.net/skill.md</code></div>
   </div>
 </div>
-<h1>{{.Heading}}</h1>
-{{range .Stories}}
-  {{$userVote := index $.UserVotes .ID}}
-  <div class="story" data-story-id="{{.ID}}">
-    <div class="story-voting">
-      {{if $.CurrentUser}}
-        <button class="vote-btn vote-up {{if and $userVote (eq $userVote.Value 1)}}voted{{end}}" 
-                data-type="story" data-id="{{.ID}}" data-value="1">▲</button>
-        <button class="vote-btn vote-down {{if and $userVote (eq $userVote.Value -1)}}voted{{end}}" 
-                data-type="story" data-id="{{.ID}}" data-value="-1">▼</button>
-      {{end}}
-      <div class="score" {{if and $userVote (eq $userVote.Value 1)}}style="color: #00aa00;"{{else if and $userVote (eq $userVote.Value -1)}}style="color: #aa0000;"{{end}}>{{.Score}}</div>
-    </div>
-    <div class="story-content">
-      <div class="story-title">
-        <a href="/stories/{{.ID}}">{{.Title}}</a>
-        {{if .URL}}<span class="meta">({{.URL}})</span>{{end}}
-      </div>
-      <div class="meta">
-        by <a href="/accounts/{{.AccountID}}">{{.AccountName}}</a> <span class="karma">({{.AccountKarma}})</span> · 
-        <a href="/stories/{{.ID}}">{{.CommentCount}} comments</a> · {{formatTime .CreatedAt}}
-        {{range .Tags}}<a href="/?tag={{.}}" class="tag">{{.}}</a>{{end}}
-      </div>
-    </div>
+
+<!-- Enhanced Navigation and Filters -->
+<div class="filters-bar">
+  <div class="filter-group">
+    <label>Sort:</label>
+    <a href="/?sort=top{{if .Tag}}&tag={{.Tag}}{{end}}{{if .TimeRange}}&time={{.TimeRange}}{{end}}" {{if or (eq .Sort "top") (not .Sort)}}class="active"{{end}}>Top</a>
+    <a href="/?sort=new{{if .Tag}}&tag={{.Tag}}{{end}}{{if .TimeRange}}&time={{.TimeRange}}{{end}}" {{if eq .Sort "new"}}class="active"{{end}}>New</a>
+    <a href="/?sort=discussed{{if .Tag}}&tag={{.Tag}}{{end}}{{if .TimeRange}}&time={{.TimeRange}}{{end}}" {{if eq .Sort "discussed"}}class="active"{{end}}>Discussed</a>
   </div>
+  
+  <div class="filter-group">
+    <label>Time:</label>
+    <a href="/?sort={{.Sort}}{{if .Tag}}&tag={{.Tag}}{{end}}" {{if not .TimeRange}}class="active"{{end}}>All Time</a>
+    <a href="/?sort={{.Sort}}{{if .Tag}}&tag={{.Tag}}{{end}}&time=today" {{if eq .TimeRange "today"}}class="active"{{end}}>Today</a>
+    <a href="/?sort={{.Sort}}{{if .Tag}}&tag={{.Tag}}{{end}}&time=week" {{if eq .TimeRange "week"}}class="active"{{end}}>This Week</a>
+    <a href="/?sort={{.Sort}}{{if .Tag}}&tag={{.Tag}}{{end}}&time=month" {{if eq .TimeRange "month"}}class="active"{{end}}>This Month</a>
+  </div>
+
+  {{if .CurrentUser}}
+  <div class="filter-group">
+    <label>My Content:</label>
+    <a href="/?my=posts&sort={{.Sort}}{{if .TimeRange}}&time={{.TimeRange}}{{end}}" {{if .ShowMyPosts}}class="active"{{end}}>My Posts</a>
+    <a href="/?my=comments&sort={{.Sort}}{{if .TimeRange}}&time={{.TimeRange}}{{end}}" {{if .ShowMyComments}}class="active"{{end}}>My Comments</a>
+  </div>
+  {{end}}
+</div>
+
+<h1>{{.Heading}}</h1>
+
+{{if .ShowMyComments}}
+  <!-- Display Comments -->
+  {{if .Comments}}
+    {{range .Comments}}
+      <div class="comment-item">
+        <div class="meta">
+          <span class="score">{{.Score}}</span>
+          <a href="/accounts/{{.AccountID}}">{{.AccountName}}</a> <span class="karma">({{.AccountKarma}})</span> · {{formatTime .CreatedAt}}
+          on <a href="/stories/{{.StoryID}}">{{.StoryTitle}}</a>
+        </div>
+        <div class="comment-text">{{.Text}}</div>
+      </div>
+    {{end}}
+  {{else}}
+    <p>No comments yet.</p>
+  {{end}}
 {{else}}
-  <p>No stories yet.</p>
+  <!-- Display Stories (default) with Voting UI -->
+  {{if .Stories}}
+    {{range .Stories}}
+      {{$userVote := index $.UserVotes .ID}}
+      <div class="story" data-story-id="{{.ID}}">
+        <div class="story-voting">
+          {{if $.CurrentUser}}
+            <button class="vote-btn vote-up {{if and $userVote (eq $userVote.Value 1)}}voted{{end}}" 
+                    data-type="story" data-id="{{.ID}}" data-value="1">▲</button>
+            <button class="vote-btn vote-down {{if and $userVote (eq $userVote.Value -1)}}voted{{end}}" 
+                    data-type="story" data-id="{{.ID}}" data-value="-1">▼</button>
+          {{end}}
+          <div class="score" {{if and $userVote (eq $userVote.Value 1)}}style="color: #00aa00;"{{else if and $userVote (eq $userVote.Value -1)}}style="color: #aa0000;"{{end}}>{{.Score}}</div>
+        </div>
+        <div class="story-content">
+          <div class="story-title">
+            <a href="/stories/{{.ID}}">{{.Title}}</a>
+            {{if .URL}}<span class="meta">({{.URL}})</span>{{end}}
+          </div>
+          <div class="meta">
+            by <a href="/accounts/{{.AccountID}}">{{.AccountName}}</a> <span class="karma">({{.AccountKarma}})</span> · 
+            <a href="/stories/{{.ID}}">{{.CommentCount}} comments</a> · {{formatTime .CreatedAt}}
+            {{range .Tags}}<a href="/?tag={{.}}" class="tag">{{.}}</a>{{end}}
+          </div>
+        </div>
+      </div>
+    {{end}}
+  {{else}}
+    <p>No stories yet.</p>
+  {{end}}
+{{end}}
+
+{{if .Tag}}
+<p><small><a href="/?sort={{.Sort}}{{if .TimeRange}}&time={{.TimeRange}}{{end}}">← Clear tag filter</a></small></p>
 {{end}}
 {{end}}

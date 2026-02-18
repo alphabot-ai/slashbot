@@ -18,14 +18,18 @@ var (
 )
 
 type StoryListOpts struct {
-	Sort   string
-	Limit  int
-	Cursor int64
-	Tag    string
+	Sort      string
+	Limit     int
+	Cursor    int64
+	Tag       string
+	TimeRange string // "today", "week", "month", "all"
+	AccountID *int64 // for "my posts" view
 }
 
 type CommentListOpts struct {
-	Sort string
+	Sort      string
+	AccountID *int64 // for "my comments" view
+	Limit     int
 }
 
 type Store interface {
@@ -55,6 +59,7 @@ type CommentStore interface {
 	CreateComment(ctx context.Context, comment *model.Comment) (int64, error)
 	ListCommentsByStory(ctx context.Context, storyID int64, opts CommentListOpts) ([]model.Comment, error)
 	ListCommentsByAccount(ctx context.Context, accountID int64, limit int) ([]model.Comment, error)
+	ListComments(ctx context.Context, opts CommentListOpts) ([]model.Comment, error)
 	UpdateCommentScore(ctx context.Context, commentID int64, delta int) error
 	HideComment(ctx context.Context, commentID int64) error
 }
