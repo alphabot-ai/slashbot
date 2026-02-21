@@ -279,6 +279,40 @@ func (s *Server) handleAPI(w http.ResponseWriter, r *http.Request) {
 	notFound(w)
 }
 
+type Pagination struct {
+	Page       int
+	TotalPages int
+	Total      int
+	HasPrev    bool
+	HasNext    bool
+	PrevPage   int
+	NextPage   int
+	BaseURL    string
+}
+
+func paginate(page, perPage, total int, baseURL string) Pagination {
+	totalPages := (total + perPage - 1) / perPage
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if page < 1 {
+		page = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+	return Pagination{
+		Page:       page,
+		TotalPages: totalPages,
+		Total:      total,
+		HasPrev:    page > 1,
+		HasNext:    page < totalPages,
+		PrevPage:   page - 1,
+		NextPage:   page + 1,
+		BaseURL:    baseURL,
+	}
+}
+
 func (s *Server) baseTemplateData(ctx context.Context, title string) map[string]any {
 	data := map[string]any{"Title": title}
 	if stats, err := s.store.GetSiteStats(ctx); err == nil {
@@ -305,24 +339,31 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	sort := r.URL.Query().Get("sort")
 	tag := r.URL.Query().Get("tag")
 	timeRange := r.URL.Query().Get("time")
-	limit := parseIntDefault(r.URL.Query().Get("limit"), 30)
+	perPage := 30
+	page := parseIntDefault(r.URL.Query().Get("page"), 1)
+	if page < 1 {
+		page = 1
+	}
 	cursor := parseInt64Default(r.URL.Query().Get("cursor"), 0)
-	
+	offset := (page - 1) * perPage
+
 	var accountID *int64
 	myView := r.URL.Query().Get("my")
 	// TODO: Add authentication for "My Posts" and "My Comments" when auth is available
 
 	var stories []model.Story
 	var comments []model.Comment
-	
+	var total int
+
 	var err error
-	
+
 	if myView == "comments" && accountID != nil {
 		// Fetch comments instead of stories
-		comments, err = s.store.ListComments(r.Context(), store.CommentListOpts{
+		comments, total, err = s.store.ListComments(r.Context(), store.CommentListOpts{
 			Sort:      sortOrDefault(sort),
 			AccountID: accountID,
-			Limit:     limit,
+			Limit:     perPage,
+			Offset:    offset,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
@@ -330,9 +371,10 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Fetch stories (default behavior)
-		stories, err = s.store.ListStories(r.Context(), store.StoryListOpts{
+		stories, total, err = s.store.ListStories(r.Context(), store.StoryListOpts{
 			Sort:      sort,
-			Limit:     limit,
+			Limit:     perPage,
+			Offset:    offset,
 			Cursor:    cursor,
 			Tag:       tag,
 			TimeRange: timeRange,
@@ -346,7 +388,10 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 
 	if wantsJSON(r) {
 		resp := map[string]any{
-			"sort": sortOrDefault(sort),
+			"sort":        sortOrDefault(sort),
+			"page":        page,
+			"total_pages": (total + perPage - 1) / perPage,
+			"total":       total,
 		}
 		if myView == "comments" {
 			resp["comments"] = comments
@@ -405,6 +450,26 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		title = fmt.Sprintf("Stories tagged %s - Slashbot", tag)
 	}
 	
+	// Build pagination base URL
+	paginationParams := url.Values{}
+	if sort != "" {
+		paginationParams.Set("sort", sort)
+	}
+	if tag != "" {
+		paginationParams.Set("tag", tag)
+	}
+	if timeRange != "" {
+		paginationParams.Set("time", timeRange)
+	}
+	if myView != "" {
+		paginationParams.Set("my", myView)
+	}
+	baseURL := "/?"
+	if enc := paginationParams.Encode(); enc != "" {
+		baseURL += enc + "&"
+	}
+	baseURL += "page="
+
 	data := s.baseTemplateDataWithAuth(r.Context(), r, title)
 	data["Heading"] = heading
 	data["Stories"] = stories
@@ -415,6 +480,7 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	data["MyView"] = myView
 	data["ShowMyPosts"] = accountID != nil && myView == "posts"
 	data["ShowMyComments"] = accountID != nil && myView == "comments"
+	data["Pagination"] = paginate(page, perPage, total, baseURL)
 
 	// Get user vote state if authenticated (always init map so template doesn't nil-index)
 	data["UserVotes"] = map[int64]*model.Vote{}
@@ -541,26 +607,51 @@ func (s *Server) handleAccountPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	limit := parseIntDefault(r.URL.Query().Get("limit"), 20)
-	if limit > 100 {
-		limit = 100
+	perPage := 20
+	storyPage := parseIntDefault(r.URL.Query().Get("page"), 1)
+	if storyPage < 1 {
+		storyPage = 1
 	}
+	commentPage := parseIntDefault(r.URL.Query().Get("cpage"), 1)
+	if commentPage < 1 {
+		commentPage = 1
+	}
+	storyOffset := (storyPage - 1) * perPage
+	commentOffset := (commentPage - 1) * perPage
 
 	keys, _ := s.store.GetAccountKeys(r.Context(), id)
-	stories, _ := s.store.ListStoriesByAccount(r.Context(), id, limit)
-	comments, _ := s.store.ListCommentsByAccount(r.Context(), id, limit)
+	stories, storyTotal, _ := s.store.ListStoriesByAccount(r.Context(), id, perPage, storyOffset)
+	comments, commentTotal, _ := s.store.ListCommentsByAccount(r.Context(), id, perPage, commentOffset)
 	activitySummary, _ := s.store.GetAccountActivitySummary(r.Context(), id)
 
 	if wantsJSON(r) {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"account":         account,
-			"keys":            keys,
-			"stories":         stories,
-			"comments":        comments,
+			"account":          account,
+			"keys":             keys,
+			"stories":          stories,
+			"comments":         comments,
 			"activity_summary": activitySummary,
+			"story_total":      storyTotal,
+			"comment_total":    commentTotal,
+			"page":             storyPage,
+			"cpage":            commentPage,
 		})
 		return
 	}
+
+	baseURL := fmt.Sprintf("/accounts/%d", id)
+	storiesBase := baseURL + "?"
+	if commentPage > 1 {
+		storiesBase += fmt.Sprintf("cpage=%d&", commentPage)
+	}
+	storiesBase += "page="
+	commentsBase := baseURL + "?"
+	if storyPage > 1 {
+		commentsBase += fmt.Sprintf("page=%d&", storyPage)
+	}
+	commentsBase += "cpage="
+	storiesPagination := paginate(storyPage, perPage, storyTotal, storiesBase)
+	commentsPagination := paginate(commentPage, perPage, commentTotal, commentsBase)
 
 	data := s.baseTemplateData(r.Context(), account.DisplayName)
 	data["Account"] = account
@@ -568,6 +659,8 @@ func (s *Server) handleAccountPage(w http.ResponseWriter, r *http.Request) {
 	data["Stories"] = stories
 	data["Comments"] = comments
 	data["ActivitySummary"] = activitySummary
+	data["StoriesPagination"] = storiesPagination
+	data["CommentsPagination"] = commentsPagination
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Account.ExecuteTemplate(w, "layout", data); err != nil {
@@ -695,22 +788,57 @@ func (s *Server) handleFlagged(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	perPage := 20
 	minFlags := parseIntDefault(r.URL.Query().Get("min"), 1)
-	stories, _ := s.store.ListFlaggedStories(r.Context(), minFlags, 50)
-	comments, _ := s.store.ListFlaggedComments(r.Context(), minFlags, 50)
+	storyPage := parseIntDefault(r.URL.Query().Get("page"), 1)
+	if storyPage < 1 {
+		storyPage = 1
+	}
+	commentPage := parseIntDefault(r.URL.Query().Get("cpage"), 1)
+	if commentPage < 1 {
+		commentPage = 1
+	}
+	storyOffset := (storyPage - 1) * perPage
+	commentOffset := (commentPage - 1) * perPage
+
+	stories, storyTotal, _ := s.store.ListFlaggedStories(r.Context(), minFlags, perPage, storyOffset)
+	comments, commentTotal, _ := s.store.ListFlaggedComments(r.Context(), minFlags, perPage, commentOffset)
 
 	if wantsJSON(r) {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"stories":  stories,
-			"comments": comments,
+			"stories":       stories,
+			"comments":      comments,
+			"story_total":   storyTotal,
+			"comment_total": commentTotal,
+			"page":          storyPage,
+			"cpage":         commentPage,
 		})
 		return
+	}
+
+	baseParams := url.Values{}
+	if minFlags != 1 {
+		baseParams.Set("min", strconv.Itoa(minFlags))
+	}
+	prefix := "/flagged?"
+	if enc := baseParams.Encode(); enc != "" {
+		prefix += enc + "&"
+	}
+	storiesPrefix := prefix
+	if commentPage > 1 {
+		storiesPrefix += fmt.Sprintf("cpage=%d&", commentPage)
+	}
+	commentsPrefix := prefix
+	if storyPage > 1 {
+		commentsPrefix += fmt.Sprintf("page=%d&", storyPage)
 	}
 
 	data := s.baseTemplateData(r.Context(), "Flagged Content")
 	data["Stories"] = stories
 	data["Comments"] = comments
 	data["MinFlags"] = minFlags
+	data["StoriesPagination"] = paginate(storyPage, perPage, storyTotal, storiesPrefix+"page=")
+	data["CommentsPagination"] = paginate(commentPage, perPage, commentTotal, commentsPrefix+"cpage=")
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Flagged.ExecuteTemplate(w, "layout", data); err != nil {
@@ -769,15 +897,15 @@ func (s *Server) handleBots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	totalPages := (total + perPage - 1) / perPage
+	pg := paginate(page, perPage, total, "/bots?sort="+sort+"&page=")
 
 	if wantsJSON(r) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"accounts":    accounts,
 			"sort":        sort,
-			"page":        page,
-			"total_pages": totalPages,
-			"total":       total,
+			"page":        pg.Page,
+			"total_pages": pg.TotalPages,
+			"total":       pg.Total,
 		})
 		return
 	}
@@ -785,13 +913,8 @@ func (s *Server) handleBots(w http.ResponseWriter, r *http.Request) {
 	data := s.baseTemplateData(r.Context(), "Bots")
 	data["Accounts"] = accounts
 	data["Sort"] = sort
-	data["Page"] = page
-	data["TotalPages"] = totalPages
 	data["Total"] = total
-	data["HasPrev"] = page > 1
-	data["HasNext"] = page < totalPages
-	data["PrevPage"] = page - 1
-	data["NextPage"] = page + 1
+	data["Pagination"] = pg
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.templates.Bots.ExecuteTemplate(w, "layout", data); err != nil {
@@ -810,12 +933,16 @@ func (s *Server) handleBots(w http.ResponseWriter, r *http.Request) {
 //	@Router			/api/flagged [get]
 func (s *Server) handleGetFlagged(w http.ResponseWriter, r *http.Request) {
 	minFlags := parseIntDefault(r.URL.Query().Get("min"), 1)
-	stories, _ := s.store.ListFlaggedStories(r.Context(), minFlags, 50)
-	comments, _ := s.store.ListFlaggedComments(r.Context(), minFlags, 50)
+	limit := parseIntDefault(r.URL.Query().Get("limit"), 50)
+	offset := parseIntDefault(r.URL.Query().Get("offset"), 0)
+	stories, storyTotal, _ := s.store.ListFlaggedStories(r.Context(), minFlags, limit, offset)
+	comments, commentTotal, _ := s.store.ListFlaggedComments(r.Context(), minFlags, limit, offset)
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"stories":  stories,
-		"comments": comments,
+		"stories":       stories,
+		"comments":      comments,
+		"story_total":   storyTotal,
+		"comment_total": commentTotal,
 	})
 }
 
@@ -866,7 +993,7 @@ func (s *Server) handleListStories(w http.ResponseWriter, r *http.Request) {
 	limit := parseIntDefault(r.URL.Query().Get("limit"), 30)
 	cursor := parseInt64Default(r.URL.Query().Get("cursor"), 0)
 
-	stories, err := s.store.ListStories(r.Context(), store.StoryListOpts{Sort: sort, Limit: limit, Cursor: cursor, Tag: tag})
+	stories, total, err := s.store.ListStories(r.Context(), store.StoryListOpts{Sort: sort, Limit: limit, Cursor: cursor, Tag: tag})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -875,6 +1002,7 @@ func (s *Server) handleListStories(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]any{
 		"stories": stories,
 		"sort":    sortOrDefault(sort),
+		"total":   total,
 		"cursor":  nextCursorStories(stories),
 	}
 	if tag != "" {
@@ -1585,14 +1713,16 @@ func (s *Server) handleGetAccount(w http.ResponseWriter, r *http.Request, idStr 
 	}
 
 	keys, _ := s.store.GetAccountKeys(r.Context(), id)
-	stories, _ := s.store.ListStoriesByAccount(r.Context(), id, limit)
-	comments, _ := s.store.ListCommentsByAccount(r.Context(), id, limit)
+	stories, storyTotal, _ := s.store.ListStoriesByAccount(r.Context(), id, limit, 0)
+	comments, commentTotal, _ := s.store.ListCommentsByAccount(r.Context(), id, limit, 0)
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"account":  account,
-		"keys":     keys,
-		"stories":  stories,
-		"comments": comments,
+		"account":       account,
+		"keys":          keys,
+		"stories":       stories,
+		"comments":      comments,
+		"story_total":   storyTotal,
+		"comment_total": commentTotal,
 	})
 }
 
@@ -2188,7 +2318,7 @@ func (s *Server) serveSitemap(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	
 	// Get recent stories for sitemap
-	stories, err := s.store.ListStories(r.Context(), store.StoryListOpts{
+	stories, _, err := s.store.ListStories(r.Context(), store.StoryListOpts{
 		Sort:  "new",
 		Limit: 100,
 	})

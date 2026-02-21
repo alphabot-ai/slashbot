@@ -49,6 +49,7 @@
         </div>
       {{end}}
     </div>
+    {{template "pagination" $.Pagination}}
   {{else}}
     <!-- Display Stories (default) with Voting UI -->
     <div class="card">
@@ -82,6 +83,7 @@
         <p style="padding: 12px 0;">No stories yet.</p>
       {{end}}
     </div>
+    {{template "pagination" $.Pagination}}
   {{end}}
 </section>
 

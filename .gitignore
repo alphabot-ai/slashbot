@@ -1,1 +1,9 @@
 .env
+.moltbook/
+.molthunt/
+dist/
+tmp/
+seed
+slashbot
+slashbot-linux
+slashbot.db

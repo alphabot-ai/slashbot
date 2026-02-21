@@ -211,7 +211,7 @@ LIMIT 1
 	return scanStory(row)
 }
 
-func (s *Store) ListStories(ctx context.Context, opts store.StoryListOpts) ([]model.Story, error) {
+func (s *Store) ListStories(ctx context.Context, opts store.StoryListOpts) ([]model.Story, int, error) {
 	limit := clamp(opts.Limit, 1, 50)
 	sortBy := opts.Sort
 	if sortBy == "" {
@@ -221,7 +221,7 @@ func (s *Store) ListStories(ctx context.Context, opts store.StoryListOpts) ([]mo
 	// Build WHERE clauses and arguments
 	var whereClauses []string
 	var args []interface{}
-	
+
 	whereClauses = append(whereClauses, "s.hidden = 0")
 
 	// Tag filter
@@ -234,7 +234,7 @@ func (s *Store) ListStories(ctx context.Context, opts store.StoryListOpts) ([]mo
 	if opts.TimeRange != "" && opts.TimeRange != "all" {
 		var since time.Time
 		now := time.Now().UTC()
-		
+
 		switch opts.TimeRange {
 		case "today":
 			since = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
@@ -243,7 +243,7 @@ func (s *Store) ListStories(ctx context.Context, opts store.StoryListOpts) ([]mo
 		case "month":
 			since = now.AddDate(0, -1, 0)
 		}
-		
+
 		if !since.IsZero() {
 			whereClauses = append(whereClauses, "s.created_at >= ?")
 			args = append(args, since.Unix())
@@ -264,6 +264,13 @@ func (s *Store) ListStories(ctx context.Context, opts store.StoryListOpts) ([]mo
 
 	whereClause := "WHERE " + strings.Join(whereClauses, " AND ")
 
+	// Get total count
+	var total int
+	countQuery := `SELECT COUNT(*) FROM stories s ` + whereClause
+	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	// Build ORDER BY clause
 	var orderBy string
 	switch sortBy {
@@ -277,24 +284,32 @@ func (s *Store) ListStories(ctx context.Context, opts store.StoryListOpts) ([]mo
 		orderBy = "ORDER BY s.created_at DESC"
 	}
 
-	// Add limit
-	args = append(args, limit)
+	// Build query with limit and offset
+	var query string
 	if sortBy == "top" {
-		// For top sorting, we need more stories to rank by score
-		args[len(args)-1] = 500
-	}
-
-	query := `
+		// For top sorting, fetch all matching stories to rank in Go
+		args = append(args, 500)
+		query = `
 SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
 ` + whereClause + `
 ` + orderBy + `
 LIMIT ?`
+	} else {
+		args = append(args, limit, opts.Offset)
+		query = `
+SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
+FROM stories s
+LEFT JOIN accounts a ON a.id = s.account_id
+` + whereClause + `
+` + orderBy + `
+LIMIT ? OFFSET ?`
+	}
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -302,12 +317,12 @@ LIMIT ?`
 	for rows.Next() {
 		story, err := scanStory(rows)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		stories = append(stories, story)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	if sortBy == "top" {
@@ -315,12 +330,18 @@ LIMIT ?`
 		sort.Slice(stories, func(i, j int) bool {
 			return rankScore(stories[i], now) > rankScore(stories[j], now)
 		})
+		// Apply offset and limit to the ranked slice
+		offset := opts.Offset
+		if offset > len(stories) {
+			offset = len(stories)
+		}
+		stories = stories[offset:]
 		if len(stories) > limit {
 			stories = stories[:limit]
 		}
 	}
 
-	return stories, nil
+	return stories, total, nil
 }
 
 func (s *Store) IncrementStoryCommentCount(ctx context.Context, storyID int64) error {
@@ -348,20 +369,26 @@ func (s *Store) HideStory(ctx context.Context, storyID int64) error {
 	return err
 }
 
-func (s *Store) ListStoriesByAccount(ctx context.Context, accountID int64, limit int) ([]model.Story, error) {
+func (s *Store) ListStoriesByAccount(ctx context.Context, accountID int64, limit, offset int) ([]model.Story, int, error) {
 	if limit <= 0 {
 		limit = 20
 	}
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM stories WHERE account_id = ? AND hidden = 0`, accountID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	rows, err := s.db.QueryContext(ctx, `
 SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
 WHERE s.account_id = ? AND s.hidden = 0
 ORDER BY s.created_at DESC
-LIMIT ?
-`, accountID, limit)
+LIMIT ? OFFSET ?
+`, accountID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -369,11 +396,11 @@ LIMIT ?
 	for rows.Next() {
 		story, err := scanStory(rows)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		stories = append(stories, story)
 	}
-	return stories, rows.Err()
+	return stories, total, rows.Err()
 }
 
 func (s *Store) CreateComment(ctx context.Context, comment *model.Comment) (int64, error) {
@@ -447,10 +474,16 @@ func (s *Store) HideComment(ctx context.Context, commentID int64) error {
 	return err
 }
 
-func (s *Store) ListCommentsByAccount(ctx context.Context, accountID int64, limit int) ([]model.Comment, error) {
+func (s *Store) ListCommentsByAccount(ctx context.Context, accountID int64, limit, offset int) ([]model.Comment, int, error) {
 	if limit <= 0 {
 		limit = 20
 	}
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM comments WHERE account_id = ? AND hidden = 0`, accountID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	rows, err := s.db.QueryContext(ctx, `
 SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name, a.karma, s.title
 FROM comments c
@@ -458,10 +491,10 @@ LEFT JOIN accounts a ON a.id = c.account_id
 LEFT JOIN stories s ON s.id = c.story_id
 WHERE c.account_id = ? AND c.hidden = 0
 ORDER BY c.created_at DESC
-LIMIT ?
-`, accountID, limit)
+LIMIT ? OFFSET ?
+`, accountID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -475,7 +508,7 @@ LIMIT ?
 		var accountKarma sql.NullInt64
 		var storyTitle sql.NullString
 		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName, &accountKarma, &storyTitle); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if parentID.Valid {
 			pid := parentID.Int64
@@ -492,10 +525,10 @@ LIMIT ?
 		c.Hidden = hidden == 1
 		comments = append(comments, c)
 	}
-	return comments, rows.Err()
+	return comments, total, rows.Err()
 }
 
-func (s *Store) ListComments(ctx context.Context, opts store.CommentListOpts) ([]model.Comment, error) {
+func (s *Store) ListComments(ctx context.Context, opts store.CommentListOpts) ([]model.Comment, int, error) {
 	limit := opts.Limit
 	if limit <= 0 {
 		limit = 50
@@ -503,7 +536,7 @@ func (s *Store) ListComments(ctx context.Context, opts store.CommentListOpts) ([
 
 	var whereClauses []string
 	var args []interface{}
-	
+
 	whereClauses = append(whereClauses, "c.hidden = 0")
 
 	// Account filter for "my comments"
@@ -514,6 +547,13 @@ func (s *Store) ListComments(ctx context.Context, opts store.CommentListOpts) ([
 
 	whereClause := "WHERE " + strings.Join(whereClauses, " AND ")
 
+	// Get total count
+	var total int
+	countQuery := `SELECT COUNT(*) FROM comments c ` + whereClause
+	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	// Build ORDER BY clause
 	var orderBy string
 	switch opts.Sort {
@@ -523,8 +563,8 @@ func (s *Store) ListComments(ctx context.Context, opts store.CommentListOpts) ([
 		orderBy = "ORDER BY c.created_at DESC"
 	}
 
-	// Add limit
-	args = append(args, limit)
+	// Add limit and offset
+	args = append(args, limit, opts.Offset)
 
 	query := `
 SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name, a.karma, s.title
@@ -533,11 +573,11 @@ LEFT JOIN accounts a ON a.id = c.account_id
 LEFT JOIN stories s ON s.id = c.story_id
 ` + whereClause + `
 ` + orderBy + `
-LIMIT ?`
+LIMIT ? OFFSET ?`
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -551,7 +591,7 @@ LIMIT ?`
 		var accountKarma sql.NullInt64
 		var storyTitle sql.NullString
 		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName, &accountKarma, &storyTitle); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if parentID.Valid {
 			pid := parentID.Int64
@@ -568,7 +608,7 @@ LIMIT ?`
 		c.Hidden = hidden == 1
 		comments = append(comments, c)
 	}
-	return comments, rows.Err()
+	return comments, total, rows.Err()
 }
 
 func (s *Store) CreateVote(ctx context.Context, vote *model.Vote) error {
@@ -718,20 +758,26 @@ SELECT COUNT(*) FROM flags WHERE target_type = ? AND target_id = ?
 	return count, err
 }
 
-func (s *Store) ListFlaggedStories(ctx context.Context, minFlags int, limit int) ([]model.Story, error) {
+func (s *Store) ListFlaggedStories(ctx context.Context, minFlags int, limit, offset int) ([]model.Story, int, error) {
 	if limit <= 0 {
 		limit = 50
 	}
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM stories WHERE flag_count >= ? AND hidden = 0`, minFlags).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	rows, err := s.db.QueryContext(ctx, `
 SELECT s.id, s.title, s.url, s.text, s.tags, s.score, s.comment_count, s.flag_count, s.created_at, s.hidden, s.account_id, a.display_name, a.karma
 FROM stories s
 LEFT JOIN accounts a ON a.id = s.account_id
 WHERE s.flag_count >= ? AND s.hidden = 0
 ORDER BY s.flag_count DESC, s.created_at DESC
-LIMIT ?
-`, minFlags, limit)
+LIMIT ? OFFSET ?
+`, minFlags, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -739,27 +785,33 @@ LIMIT ?
 	for rows.Next() {
 		story, err := scanStory(rows)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		stories = append(stories, story)
 	}
-	return stories, rows.Err()
+	return stories, total, rows.Err()
 }
 
-func (s *Store) ListFlaggedComments(ctx context.Context, minFlags int, limit int) ([]model.Comment, error) {
+func (s *Store) ListFlaggedComments(ctx context.Context, minFlags int, limit, offset int) ([]model.Comment, int, error) {
 	if limit <= 0 {
 		limit = 50
 	}
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM comments WHERE flag_count >= ? AND hidden = 0`, minFlags).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	rows, err := s.db.QueryContext(ctx, `
 SELECT c.id, c.story_id, c.parent_id, c.text, c.score, c.flag_count, c.created_at, c.hidden, c.account_id, a.display_name, a.karma
 FROM comments c
 LEFT JOIN accounts a ON a.id = c.account_id
 WHERE c.flag_count >= ? AND c.hidden = 0
 ORDER BY c.flag_count DESC, c.created_at DESC
-LIMIT ?
-`, minFlags, limit)
+LIMIT ? OFFSET ?
+`, minFlags, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -772,7 +824,7 @@ LIMIT ?
 		var accountName sql.NullString
 		var accountKarma sql.NullInt64
 		if err := rows.Scan(&c.ID, &c.StoryID, &parentID, &c.Text, &c.Score, &c.FlagCount, &created, &hidden, &c.AccountID, &accountName, &accountKarma); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if parentID.Valid {
 			pid := parentID.Int64
@@ -786,7 +838,7 @@ LIMIT ?
 		c.Hidden = hidden == 1
 		comments = append(comments, c)
 	}
-	return comments, rows.Err()
+	return comments, total, rows.Err()
 }
 
 func (s *Store) UpdateAccountKarma(ctx context.Context, accountID int64, delta int) error {

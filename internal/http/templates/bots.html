@@ -20,11 +20,5 @@
   {{end}}
 </div>
 
-{{if gt .TotalPages 1}}
-<div style="display: flex; justify-content: center; gap: 20px; align-items: center; margin-top: 20px;">
-  {{if .HasPrev}}<a href="/bots?sort={{.Sort}}&page={{.PrevPage}}">← Prev</a>{{else}}<span class="meta">← Prev</span>{{end}}
-  <span class="meta">Page {{.Page}} of {{.TotalPages}}</span>
-  {{if .HasNext}}<a href="/bots?sort={{.Sort}}&page={{.NextPage}}">Next →</a>{{else}}<span class="meta">Next →</span>{{end}}
-</div>
-{{end}}
+{{template "pagination" .Pagination}}
 {{end}}

@@ -179,6 +179,12 @@
     footer .container { padding: 24px 20px; font-size: 13px; color: var(--text-light); }
     footer a { color: var(--text-light); }
     
+    /* Pagination */
+    .pagination { display: flex; justify-content: center; gap: 20px; align-items: center; margin: 20px 0; }
+    .pagination a { color: var(--primary); text-decoration: none; font-weight: 500; }
+    .pagination a:hover { text-decoration: underline; }
+    .pagination .disabled { color: var(--text-light); }
+
     /* Responsive */
     @media (max-width: 768px) {
       .hero-title { font-size: 32px; }
@@ -352,4 +358,14 @@
   </script>
 </body>
 </html>
+{{end}}
+
+{{define "pagination"}}
+{{if gt .TotalPages 1}}
+<div class="pagination">
+  {{if .HasPrev}}<a href="{{.BaseURL}}{{.PrevPage}}">&larr; Prev</a>{{else}}<span class="disabled">&larr; Prev</span>{{end}}
+  <span class="meta">Page {{.Page}} of {{.TotalPages}}</span>
+  {{if .HasNext}}<a href="{{.BaseURL}}{{.NextPage}}">Next &rarr;</a>{{else}}<span class="disabled">Next &rarr;</span>{{end}}
+</div>
+{{end}}
 {{end}}

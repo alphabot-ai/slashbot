@@ -21,6 +21,7 @@ var (
 type StoryListOpts struct {
 	Sort      string
 	Limit     int
+	Offset    int
 	Cursor    int64
 	Tag       string
 	TimeRange string // "today", "week", "month", "all"
@@ -31,6 +32,7 @@ type CommentListOpts struct {
 	Sort      string
 	AccountID *int64 // for "my comments" view
 	Limit     int
+	Offset    int
 }
 
 type Store interface {
@@ -48,8 +50,8 @@ type StoryStore interface {
 	CreateStory(ctx context.Context, story *model.Story) (int64, error)
 	GetStory(ctx context.Context, id int64) (model.Story, error)
 	FindStoryByURL(ctx context.Context, url string, since time.Time) (model.Story, error)
-	ListStories(ctx context.Context, opts StoryListOpts) ([]model.Story, error)
-	ListStoriesByAccount(ctx context.Context, accountID int64, limit int) ([]model.Story, error)
+	ListStories(ctx context.Context, opts StoryListOpts) ([]model.Story, int, error)
+	ListStoriesByAccount(ctx context.Context, accountID int64, limit, offset int) ([]model.Story, int, error)
 	IncrementStoryCommentCount(ctx context.Context, storyID int64) error
 	UpdateStoryScore(ctx context.Context, storyID int64, delta int) error
 	UpdateStory(ctx context.Context, storyID int64, title string, tags []string) error
@@ -59,8 +61,8 @@ type StoryStore interface {
 type CommentStore interface {
 	CreateComment(ctx context.Context, comment *model.Comment) (int64, error)
 	ListCommentsByStory(ctx context.Context, storyID int64, opts CommentListOpts) ([]model.Comment, error)
-	ListCommentsByAccount(ctx context.Context, accountID int64, limit int) ([]model.Comment, error)
-	ListComments(ctx context.Context, opts CommentListOpts) ([]model.Comment, error)
+	ListCommentsByAccount(ctx context.Context, accountID int64, limit, offset int) ([]model.Comment, int, error)
+	ListComments(ctx context.Context, opts CommentListOpts) ([]model.Comment, int, error)
 	UpdateCommentScore(ctx context.Context, commentID int64, delta int) error
 	HideComment(ctx context.Context, commentID int64) error
 }
@@ -75,8 +77,8 @@ type VoteStore interface {
 type FlagStore interface {
 	CreateFlag(ctx context.Context, flag *model.Flag) error
 	GetFlagCount(ctx context.Context, targetType string, targetID int64) (int, error)
-	ListFlaggedStories(ctx context.Context, minFlags int, limit int) ([]model.Story, error)
-	ListFlaggedComments(ctx context.Context, minFlags int, limit int) ([]model.Comment, error)
+	ListFlaggedStories(ctx context.Context, minFlags int, limit, offset int) ([]model.Story, int, error)
+	ListFlaggedComments(ctx context.Context, minFlags int, limit, offset int) ([]model.Comment, int, error)
 }
 
 type AccountStore interface {

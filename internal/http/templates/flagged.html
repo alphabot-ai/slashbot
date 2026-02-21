@@ -21,6 +21,7 @@
   </div>
   {{end}}
 </div>
+{{template "pagination" .StoriesPagination}}
 {{else}}
 <p>No flagged stories.</p>
 {{end}}
@@ -40,6 +41,7 @@
   </div>
   {{end}}
 </div>
+{{template "pagination" .CommentsPagination}}
 {{else}}
 <p>No flagged comments.</p>
 {{end}}
