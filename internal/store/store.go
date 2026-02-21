@@ -15,6 +15,7 @@ var (
 	ErrDuplicateKey   = errors.New("duplicate key")
 	ErrDuplicateFlag  = errors.New("duplicate flag")
 	ErrDuplicateName  = errors.New("duplicate name")
+	ErrAlreadyClaimed = errors.New("already claimed")
 )
 
 type StoryListOpts struct {
@@ -92,6 +93,8 @@ type AccountStore interface {
 	RenameAccount(ctx context.Context, accountID int64, newName string) error
 	GetAccountActivitySummary(ctx context.Context, accountID int64) (model.ActivitySummary, error)
 	GetRecentlyActiveUsers(ctx context.Context, limit int) ([]model.UserActivity, error)
+	ClaimGitHubStar(ctx context.Context, accountID int64, githubUsername string) error
+	HasClaimedGitHubStar(ctx context.Context, accountID int64) (bool, error)
 }
 
 type AuthStore interface {

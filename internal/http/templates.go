@@ -47,6 +47,13 @@ func loadTemplates() (*Templates, error) {
 			}
 			return s[:n]
 		},
+		"dict": func(values ...any) map[string]any {
+			d := make(map[string]any, len(values)/2)
+			for i := 0; i < len(values)-1; i += 2 {
+				d[values[i].(string)] = values[i+1]
+			}
+			return d
+		},
 	}
 
 	// Load layout

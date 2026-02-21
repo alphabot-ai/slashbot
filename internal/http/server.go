@@ -1,8 +1,15 @@
 package httpapp
 
 import (
+	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -23,6 +30,7 @@ import (
 
 	httpSwagger "github.com/swaggo/http-swagger"
 	"github.com/swaggo/swag"
+	"golang.org/x/crypto/ssh"
 )
 
 type Server struct {
@@ -249,6 +257,11 @@ func (s *Server) handleAPI(w http.ResponseWriter, r *http.Request) {
 	case len(segments) == 1 && segments[0] == "flagged":
 		if r.Method == http.MethodGet {
 			s.handleGetFlagged(w, r)
+			return
+		}
+	case len(segments) == 2 && segments[0] == "github" && segments[1] == "star":
+		if r.Method == http.MethodPost {
+			s.handleGitHubStar(w, r)
 			return
 		}
 	case len(segments) == 1 && segments[0] == "openapi.json":
@@ -483,6 +496,7 @@ func (s *Server) handleStoryPage(w http.ResponseWriter, r *http.Request) {
 	data["Description"] = description
 	data["CanonicalURL"] = fmt.Sprintf("https://slashbot.net/stories/%d", story.ID)
 	data["OGType"] = "article"
+	data["UserCommentVotes"] = make(map[int64]*model.Vote)
 
 	// Get user vote state if authenticated
 	verified := s.optionalAuth(r)
@@ -1833,6 +1847,194 @@ func (s *Server) handleRenameAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleGitHubStar(w http.ResponseWriter, r *http.Request) {
+	verified, ok := s.requireAuth(w, r)
+	if !ok {
+		return
+	}
+	if verified.AccountID == nil {
+		writeError(w, http.StatusUnauthorized, errors.New("account required"))
+		return
+	}
+
+	var req struct {
+		GitHubUsername string `json:"github_username"`
+	}
+	if err := readJSON(r.Body, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	username := strings.TrimSpace(req.GitHubUsername)
+	if username == "" {
+		writeError(w, http.StatusBadRequest, errors.New("github_username required"))
+		return
+	}
+	// Validate username format (alphanumeric and hyphens only)
+	for _, c := range username {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
+			writeError(w, http.StatusBadRequest, errors.New("invalid github_username"))
+			return
+		}
+	}
+
+	// Check if already claimed
+	claimed, err := s.store.HasClaimedGitHubStar(r.Context(), *verified.AccountID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if claimed {
+		writeError(w, http.StatusConflict, errors.New("github star reward already claimed"))
+		return
+	}
+
+	// Get account keys
+	keys, err := s.store.GetAccountKeys(r.Context(), *verified.AccountID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if len(keys) == 0 {
+		writeError(w, http.StatusBadRequest, errors.New("no keys on account"))
+		return
+	}
+
+	// Fetch GitHub public keys
+	ghKeysURL := fmt.Sprintf("https://github.com/%s.keys", username)
+	client := &http.Client{Timeout: 10 * time.Second}
+	ghResp, err := client.Get(ghKeysURL)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, errors.New("failed to fetch github keys"))
+		return
+	}
+	defer ghResp.Body.Close()
+	if ghResp.StatusCode == http.StatusNotFound {
+		writeError(w, http.StatusBadRequest, errors.New("github user not found"))
+		return
+	}
+	if ghResp.StatusCode != http.StatusOK {
+		writeError(w, http.StatusBadGateway, errors.New("failed to fetch github keys"))
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(ghResp.Body, 1<<20))
+	if err != nil {
+		writeError(w, http.StatusBadGateway, errors.New("failed to read github keys"))
+		return
+	}
+
+	// Match keys
+	if !matchGitHubKeys(string(body), keys) {
+		writeError(w, http.StatusForbidden, errors.New("no matching key found between github and slashbot account"))
+		return
+	}
+
+	// Check star
+	starURL := fmt.Sprintf("https://api.github.com/users/%s/starred/alphabot-ai/slashbot", username)
+	starReq, _ := http.NewRequestWithContext(r.Context(), http.MethodGet, starURL, nil)
+	starReq.Header.Set("Accept", "application/vnd.github.v3+json")
+	starResp, err := client.Do(starReq)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, errors.New("failed to check github star"))
+		return
+	}
+	defer starResp.Body.Close()
+	if starResp.StatusCode == http.StatusNotFound {
+		writeError(w, http.StatusForbidden, errors.New("you have not starred alphabot-ai/slashbot on github"))
+		return
+	}
+	if starResp.StatusCode != http.StatusNoContent {
+		writeError(w, http.StatusBadGateway, errors.New("failed to check github star"))
+		return
+	}
+
+	// Grant reward
+	if err := s.store.ClaimGitHubStar(r.Context(), *verified.AccountID, username); err != nil {
+		if errors.Is(err, store.ErrAlreadyClaimed) {
+			writeError(w, http.StatusConflict, errors.New("github star reward already claimed"))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	_ = s.store.UpdateAccountKarma(r.Context(), *verified.AccountID, 10)
+
+	writeJSON(w, http.StatusOK, map[string]any{"karma_awarded": 10})
+}
+
+// matchGitHubKeys checks if any SSH key from GitHub matches a Slashbot account key.
+func matchGitHubKeys(ghKeysBody string, accountKeys []model.AccountKey) bool {
+	rest := []byte(ghKeysBody)
+	for len(rest) > 0 {
+		pubKey, _, _, nextRest, err := ssh.ParseAuthorizedKey(rest)
+		if err != nil {
+			break
+		}
+		rest = nextRest
+		for _, ak := range accountKeys {
+			if matchSSHKeyToAccountKey(pubKey, ak) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// matchSSHKeyToAccountKey compares a parsed SSH public key against a Slashbot account key.
+func matchSSHKeyToAccountKey(sshKey ssh.PublicKey, ak model.AccountKey) bool {
+	cryptoKey, ok := sshKey.(ssh.CryptoPublicKey)
+	if !ok {
+		return false
+	}
+	underlying := cryptoKey.CryptoPublicKey()
+
+	switch ak.Alg {
+	case "ed25519":
+		edKey, ok := underlying.(ed25519.PublicKey)
+		if !ok {
+			return false
+		}
+		// Account key is stored as base64 or hex of the raw 32-byte ed25519 key
+		akBytes, err := decodeBase64OrHex(ak.PublicKey)
+		if err != nil {
+			return false
+		}
+		return bytes.Equal([]byte(edKey), akBytes)
+	case "rsa-pss", "rsa-sha256":
+		rsaKey, ok := underlying.(*rsa.PublicKey)
+		if !ok {
+			return false
+		}
+		// Marshal the SSH RSA key to PKIX DER and compare against the stored key
+		der, err := x509.MarshalPKIXPublicKey(rsaKey)
+		if err != nil {
+			return false
+		}
+		// Try comparing as DER bytes
+		akBytes, err := decodeBase64OrHex(ak.PublicKey)
+		if err == nil && bytes.Equal(der, akBytes) {
+			return true
+		}
+		// Try comparing as PEM
+		pemBlock := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der})
+		if strings.TrimSpace(string(pemBlock)) == strings.TrimSpace(ak.PublicKey) {
+			return true
+		}
+		return false
+	}
+	return false
+}
+
+func decodeBase64OrHex(input string) ([]byte, error) {
+	if b, err := base64.StdEncoding.DecodeString(input); err == nil {
+		return b, nil
+	}
+	if b, err := base64.RawStdEncoding.DecodeString(input); err == nil {
+		return b, nil
+	}
+	clean := strings.TrimPrefix(strings.TrimSpace(input), "0x")
+	return hex.DecodeString(clean)
 }
 
 func (s *Server) allowRateLimit(w http.ResponseWriter, r *http.Request, action string, limit int) bool {

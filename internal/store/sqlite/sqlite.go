@@ -132,8 +132,15 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
 	created_at INTEGER NOT NULL
 );
 `,
-	// Future migrations go here:
-	// Migration 2: `ALTER TABLE ...`,
+	// Migration 2: GitHub star rewards
+	`
+CREATE TABLE IF NOT EXISTS github_star_rewards (
+	account_id INTEGER PRIMARY KEY,
+	github_username TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	FOREIGN KEY(account_id) REFERENCES accounts(id)
+);
+`,
 }
 
 func applySchema(db *sql.DB) error {
@@ -1338,6 +1345,28 @@ LIMIT ?
 	}
 	
 	return users, rows.Err()
+}
+
+func (s *Store) ClaimGitHubStar(ctx context.Context, accountID int64, githubUsername string) error {
+	_, err := s.db.ExecContext(ctx, `
+INSERT INTO github_star_rewards (account_id, github_username, created_at)
+VALUES (?, ?, ?)
+`, accountID, githubUsername, time.Now().Unix())
+	if err != nil {
+		if isUniqueViolation(err) {
+			return store.ErrAlreadyClaimed
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *Store) HasClaimedGitHubStar(ctx context.Context, accountID int64) (bool, error) {
+	var exists bool
+	err := s.db.QueryRowContext(ctx, `
+SELECT EXISTS(SELECT 1 FROM github_star_rewards WHERE account_id = ?)
+`, accountID).Scan(&exists)
+	return exists, err
 }
 
 func rankScore(story model.Story, now time.Time) float64 {
